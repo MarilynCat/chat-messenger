@@ -1,9 +1,8 @@
 package client;
 
-import com.formdev.flatlaf.FlatDarkLaf;
-import server.HiPacket;
-import client.ChatWindow;
 import client.ClientConnection;
+import client.ChatWindow;
+import server.HiPacket;
 
 import javax.swing.*;
 import java.awt.*;
@@ -70,8 +69,13 @@ public class LoginWindow extends JFrame {
             });
             connection.start();
 
+            // Добавлена передача и логирование данных в `HiPacket`
             HiPacket hiPacket = new HiPacket();
             hiPacket.login = username;
+            hiPacket.password = password;  // Исправление: Добавлена передача пароля
+
+            System.out.println("📤 [LoginWindow] HiPacket отправлен с логином: " + hiPacket.login + " и паролем: " + hiPacket.password);
+
             connection.sendPacket(hiPacket);
 
             ChatWindow chatWindow = new ChatWindow(connection, username);

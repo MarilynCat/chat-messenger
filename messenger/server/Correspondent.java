@@ -5,9 +5,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Correspondent {
-    public final int id;
-    public final String login;
-    public final String password; // Добавляем поле для пароля
+    private final int id;
+    private final String login;
+    private final String password; // Поле для пароля
 
     public Session activeSession;
 
@@ -15,25 +15,37 @@ public class Correspondent {
     public Correspondent(int id, String login, String password) {
         this.id = id;
         this.login = login;
-        this.password = password; // Инициализация пароля
+        this.password = password;
     }
 
+    // Геттеры для получения ID и логина
+    public int getId() {
+        return id;
+    }
+
+    public String getLogin() {
+        return login;
+    }
+
+    // ==============================
+    // 🔒 Система хранения пользователей
+    // ==============================
     private static final Map<Integer, Correspondent> correspondentById = new HashMap<>();
     private static final Map<String, Correspondent> correspondentByLogin = new HashMap<>();
 
-    // Регистрация пользователя с паролем
+    // Регистрация нового пользователя
     public static void registerCorrespondent(Correspondent c) {
         correspondentById.put(c.id, c);
         correspondentByLogin.put(c.login, c);
     }
 
     // Поиск по ID
-    public static Correspondent findCorrespondent(int id) {
+    public static Correspondent getCorrespondent(int id) {
         return correspondentById.get(id);
     }
 
     // Поиск по логину
-    public static Correspondent findCorrespondent(String login) {
+    public static Correspondent getCorrespondent(String login) {
         return correspondentByLogin.get(login);
     }
 
@@ -42,8 +54,16 @@ public class Correspondent {
         return correspondentById.values();
     }
 
+    // Валидация логина и пароля
     public static boolean validateUser(String login, String password) {
         Correspondent correspondent = correspondentByLogin.get(login);
-        return correspondent != null && correspondent.password.equals(password);  // Проверка пароля
+        if (correspondent != null && correspondent.password.equals(password)) {
+            System.out.println("✅ [Correspondent] Пользователь авторизован: " + login);
+            return true;
+        } else {
+            System.out.println("❌ [Correspondent] Неверный логин или пароль для: " + login);
+            return false;
+        }
     }
+
 }

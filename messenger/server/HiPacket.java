@@ -16,13 +16,32 @@ public class HiPacket extends Packet {
 
     @Override
     public void writeBody(PrintWriter writer) throws Exception {
+        if (login == null || password == null) {
+            System.out.println("❌ [HiPacket] Попытка отправки данных с null-полями.");
+            return;
+        }
+
+        System.out.println("📤 [HiPacket] Отправка данных: login = " + login + ", password = " + password);
         writer.println(login);      // Отправляем логин
         writer.println(password);   // Отправляем пароль
     }
 
     @Override
     public void readBody(BufferedReader reader) throws Exception {
-        login = reader.readLine();       // Читаем логин
-        password = reader.readLine();    // Читаем пароль
+        try {
+            login = reader.readLine();
+            password = reader.readLine();
+
+            if (login == null || password == null) {
+                System.out.println("❌ [HiPacket] Некорректные данные в пакете. Пропуск.");
+                login = "";
+                password = "";
+            } else {
+                System.out.println("📩 [HiPacket] Получены данные: login = " + login + ", password = " + password);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ [HiPacket] Ошибка при чтении данных: " + e.getMessage());
+            throw e;
+        }
     }
 }

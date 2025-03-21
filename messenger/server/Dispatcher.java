@@ -1,82 +1,113 @@
 package server;
 
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Dispatcher implements Runnable {
-     private static final LinkedBlockingQueue<Event> packetQueue = new LinkedBlockingQueue<>();
+    private static final LinkedBlockingQueue<Event> packetQueue = new LinkedBlockingQueue<>();
 
-     public static void event(Event e) {
+    public static void event(Event e) {
         packetQueue.add(e);
-     }
+    }
 
     public void run() {
-        for(;;) {
+        System.out.println("✅ [Dispatcher] Поток диспетчера запущен.");
+        while (true) {
             try {
                 var e = packetQueue.take();
                 processPacket(e.session, e.packet);
-            }
-            catch(InterruptedException x) {
+            } catch (InterruptedException x) {
+                System.out.println("🛑 [Dispatcher] Поток прерван.");
                 break;
+            } catch (Exception e) {
+                System.out.println("❌ [Dispatcher] Ошибка при обработке пакета: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
 
     private void processPacket(Session session, Packet p) {
-        System.out.println("Processing packet: " + p.getType());
-        try {
-        switch(p) {
-            case EchoPacket echoP -> {
-                session.send(p);
-            }
+        if (session == null) {
+            System.out.println("❌ [Dispatcher] Ошибка: Сессия не определена.");
+            return;
+        }
 
+        if (p == null) {
+            System.out.println("❌ [Dispatcher] Ошибка: Пакет не определён.");
+            return;
+        }
+
+        System.out.println("📩 [Dispatcher] Пакет для обработки: " + p.getType());
+
+        switch (p) {
             case HiPacket hiP -> {
-                // Проверяем логин и пароль
-                if (!Correspondent.validateUser(hiP.login, hiP.password)) {
-                    session.close();  // Закрываем сессию, если логин или пароль неверны
+                System.out.println("✅ [Dispatcher] Получен HiPacket от: " + hiP.login);
+
+                if (hiP.login == null || hiP.password == null) {
+                    System.out.println("❌ [Dispatcher] Ошибка: Поля логина или пароля пустые.");
+                    session.sendPacket(new ErrorPacket("Empty login or password."));
+                    session.close();
                     return;
                 }
 
-                var correspondent = Correspondent.findCorrespondent(hiP.login);
-                if (correspondent == null) {
+                var correspondent = Correspondent.getCorrespondent(hiP.login);
+
+                if (correspondent == null || !Correspondent.validateUser(hiP.login, hiP.password)) {
+                    System.out.println("❌ [Dispatcher] Ошибка: Неверный логин или пароль.");
+                    session.sendPacket(new ErrorPacket("Invalid credentials."));
                     session.close();
                     return;
                 }
 
                 session.correspondent = correspondent;
                 correspondent.activeSession = session;
-                System.out.println("Correspondent authorized, id: " + correspondent.id);
+
+                System.out.println("✅ [Dispatcher] Пользователь успешно авторизован: " + hiP.login);
+                session.sendPacket(new WelcomePacket());
             }
 
-            case MessagePacket mP -> {
-                if(session.correspondent == null) {
-                    System.out.println("Non-authorized");
-                    return;
+            case ListPacket listP -> {
+                System.out.println("✅ [Dispatcher] Получен ListPacket с пользователями: " + listP.items.size());
+                for (ListPacket.CorrespondentItem item : listP.items) {
+                    System.out.println("🟢 [Dispatcher] Пользователь в списке: " + item.login);
                 }
-                var correspondent = Correspondent.findCorrespondent(mP.correspondentId);
-                mP.correspondentId = session.correspondent.id;
-                if(correspondent.activeSession != null) {
-                    System.out.println("Sending message to correspondent, id: " + correspondent.id);
-                    correspondent.activeSession.send(mP);
+            }
+
+            case MessagePacket msgP -> {
+                System.out.println("💬 [Dispatcher] Сообщение от ID: " + session.getCorrespondentId());
+
+                var recipientSession = findSessionById(msgP.correspondentId);
+                if (recipientSession != null) {
+                    System.out.println("📨 [Dispatcher] Сообщение отправлено пользователю ID: " + msgP.correspondentId);
+                    recipientSession.sendPacket(msgP);
                 } else {
-                    System.out.println("Target correspondent not conneacted, id: " + correspondent.id);
+                    System.out.println("❌ [Dispatcher] Получатель ID " + msgP.correspondentId + " не найден.");
+                    session.sendPacket(new ErrorPacket("Recipient not found."));
                 }
             }
 
-            case ListPacket emptyListP -> {
-                var filledListP = new ListPacket();
-                for(var c : Correspondent.listAll()) {
-                    filledListP.addItem(c.id, c.login);
-                }
-                session.send(filledListP);
-            }
-            
             default -> {
-                System.out.println("Unexpected packet type: " + p.getType());
+                System.out.println("❗️ [Dispatcher] Неизвестный пакет: " + p.getType());
+                session.sendPacket(new ErrorPacket("Unknown packet type."));
             }
         }
-        } catch(Exception ex) {
-			System.out.println("server.Dispatcher problem: " + ex.getMessage());
-			ex.printStackTrace();
+    }
+
+    // Исправленный метод для поиска сессии по ID собеседника
+    private Session findSessionById(int correspondentId) {
+        List<Session> activeSessions = MessengerServer.getActiveSessions();
+        if (activeSessions == null || activeSessions.isEmpty()) {
+            System.out.println("❌ [Dispatcher] Ошибка: Список сессий пуст.");
+            return null;
         }
+
+        for (Session session : activeSessions) {
+            if (session.getCorrespondentId() == correspondentId) {
+                return session;
+            }
+        }
+
+        System.out.println("❌ [Dispatcher] Ошибка: Сессия с ID " + correspondentId + " не найдена.");
+        return null;
     }
 }

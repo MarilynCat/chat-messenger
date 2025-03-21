@@ -16,34 +16,51 @@ public class ListPacket extends Packet {
             this.login = login;
         }
     }
-    
+
     public ArrayList<CorrespondentItem> items = new ArrayList<>();
 
+    // Добавление пользователя в список
     public void addItem(int id, String login) {
         var item = new CorrespondentItem(id, login);
         items.add(item);
     }
 
+    @Override
     public String getType() {
         return type;
     }
 
+    // Метод для записи данных в поток
+    @Override
     public void writeBody(PrintWriter writer) throws Exception {
-        for(var ci : items) {
-            writer.println(ci.id);
-            writer.println(ci.login);
+        for (var ci : items) {
+            writer.println(ci.id);      // Пишем ID пользователя
+            writer.println(ci.login);   // Пишем имя пользователя
         }
-        writer.println();
+        writer.println();  // Пустая строка для обозначения конца списка
     }
 
+    // Метод для чтения данных из потока
+    @Override
     public void readBody(BufferedReader reader) throws Exception {
-        for(;;) {
+        items.clear();  // Очищаем список перед добавлением данных
+        while (true) {
             var firstLine = reader.readLine();
-            if(firstLine.isEmpty())
-                break;
+            if (firstLine == null || firstLine.isEmpty()) {
+                break;  // Конец данных
+            }
+
             var secondLine = reader.readLine();
-            
-            addItem(Integer.parseInt(firstLine), secondLine);
+            if (secondLine == null) {
+                break;  // Предотвращение ошибок при некорректных данных
+            }
+
+            try {
+                int id = Integer.parseInt(firstLine);
+                addItem(id, secondLine); // Добавляем пользователя в список
+            } catch (NumberFormatException e) {
+                System.err.println("Ошибка при чтении ID пользователя: " + e.getMessage());
+            }
         }
     }
 }
