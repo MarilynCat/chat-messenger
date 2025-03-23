@@ -1,10 +1,7 @@
 package client;
 
 import client.ClientConnection;
-import server.EchoPacket;
-import server.ListPacket;
-import server.MessagePacket;
-import server.Packet;
+import server.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -92,6 +89,10 @@ public class ChatWindow extends JFrame {
         }
 
         int correspondentId = userIdMap.get(selectedUser);
+        if (correspondentId == -1) {
+            chatArea.append("❌ Ошибка: Собеседник не авторизован.\n");
+            return;
+        }
 
         MessagePacket msgPacket = new MessagePacket();
         msgPacket.correspondentId = correspondentId;
@@ -124,14 +125,19 @@ public class ChatWindow extends JFrame {
 
         } else if (packet instanceof MessagePacket) {
             MessagePacket msg = (MessagePacket) packet;
-            displayIncomingMessage("From: " + msg.text);
+            Correspondent sender = Correspondent.getCorrespondent(msg.correspondentId);
+
+            if (sender != null) {
+                displayIncomingMessage("📩 " + sender.getLogin() + ": " + msg.text);
+            } else {
+                displayIncomingMessage("❓ Сообщение от неизвестного пользователя: " + msg.text);
+            }
 
         } else {
             displayIncomingMessage("Received: " + packet.getType());
             System.out.println("❗️ [ChatWindow] Неизвестный тип пакета: " + packet.getType());
         }
     }
-
 
     private void updateUserList(ListPacket listPacket) {
         SwingUtilities.invokeLater(() -> {

@@ -14,7 +14,7 @@ public abstract class Packet {
             MessagePacket.type, s -> new MessagePacket(),
             ListPacket.type, s -> new ListPacket(),
             WelcomePacket.type, s -> new WelcomePacket(),
-            ErrorPacket.type, ErrorPacket::new    // ✅ Исправление: добавлена поддержка конструктора с параметром
+            ErrorPacket.type, ErrorPacket::new  // ✅ Исправление: добавлена поддержка конструктора с параметром
     );
 
     public abstract String getType();
@@ -23,25 +23,19 @@ public abstract class Packet {
 
     public abstract void readBody(BufferedReader reader) throws Exception;
 
-    // ✅ Улучшена диагностика в методе отправки пакетов
+    // ✅ Улучшенная диагностика в методе отправки пакетов
     public void writePacket(PrintWriter writer) {
         try {
-            if (getType() == null || getType().isEmpty()) {
-                System.out.println("❌ [Packet] Ошибка: Пустой тип пакета.");
-                return;
-            }
-
-            System.out.println("📤 [Packet] Отправка пакета с типом: " + getType());
-
+            System.out.println("📤 [Packet] Отправка данных: " + getType());
             writer.println(getType());
             writeBody(writer);
-            writer.println(END_MARKER); // ✅ Добавлена дополнительная диагностика для проверки корректного завершения пакета
+            writer.println(END_MARKER); // Явный конец пакета
             writer.flush();
 
             if (writer.checkError()) {
-                System.out.println("❗️ [Packet] Ошибка при отправке данных (поток закрыт)");
+                System.out.println("❗️ [Packet] Ошибка при отправке данных.");
             } else {
-                System.out.println("✅ [Packet] Пакет успешно отправлен.");
+                System.out.println("✅ [Packet] Данные успешно отправлены: " + getType());
             }
         } catch (Exception x) {
             System.out.println("❌ [Packet] Ошибка при отправке пакета: " + x.getMessage());
@@ -53,6 +47,12 @@ public abstract class Packet {
         try {
             if (reader == null) {
                 System.out.println("❌ [Packet] Ошибка: Поток чтения = null.");
+                return null;
+            }
+
+            // ✅ Проверяем, готов ли поток данных
+            if (!reader.ready()) {
+                System.out.println("❗️ [Packet] Поток данных не готов к чтению.");
                 return null;
             }
 
@@ -73,9 +73,17 @@ public abstract class Packet {
             Packet packet = packetSupplier.apply(type.equals(ErrorPacket.type) ? reader.readLine() : "");
             packet.readBody(reader);
 
+            // 🔎 Чтение маркера завершения пакета
             String endSignal = reader.readLine();
-            if (!"###END###".equals(endSignal)) {
-                System.out.println("❌ [Packet] Пакет не завершён корректно. Получено: " + endSignal);
+            if (endSignal == null) {
+                System.out.println("❌ [Packet] Пакет оборван или маркер завершения не получен.");
+                return null;
+            }
+
+            System.out.println("🔎 [Packet] Прочитан маркер завершения: '" + endSignal + "'");
+
+            if (!END_MARKER.equals(endSignal.trim())) {
+                System.out.println("❌ [Packet] Пакет не завершён корректно. Ожидался маркер '###END###'.");
                 return null;
             }
 
@@ -83,16 +91,16 @@ public abstract class Packet {
             return packet;
         } catch (Exception x) {
             System.out.println("❌ [Packet] Ошибка при чтении пакета: " + x.getMessage());
+            x.printStackTrace();
             return null;
         }
     }
-
 
     public String readText(BufferedReader reader) throws Exception {
         StringBuilder text = new StringBuilder();
         while (true) {
             var s = reader.readLine();
-            if (s == null || s.isEmpty()) break;
+            if (s == null || s.trim().equals(END_MARKER)) break; // Поддержка пустых строк и длинных сообщений
 
             if (text.length() > 0) {
                 text.append("\n");

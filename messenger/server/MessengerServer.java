@@ -11,16 +11,26 @@ public class MessengerServer {
 	private static final ArrayList<Session> sessions = new ArrayList<>();
 
 	public static void main(String[] args) {
+		// Установка порта (по умолчанию 20000)
+		int port = 20000;
+		if (args.length > 0) {
+			try {
+				port = Integer.parseInt(args[0]);
+			} catch (NumberFormatException e) {
+				System.out.println("❗️ Неверный формат порта. Используется порт по умолчанию: " + port);
+			}
+		}
+
 		// Регистрируем пользователей с паролями
 		Correspondent.registerCorrespondent(new Correspondent(1, "User1", "password1"));
 		Correspondent.registerCorrespondent(new Correspondent(2, "User2", "password2"));
 		Correspondent.registerCorrespondent(new Correspondent(3, "User3", "password3"));
 
-		try (ServerSocket serverSocket = new ServerSocket(10001)) {
+		try (ServerSocket serverSocket = new ServerSocket(port)) {
 			// Запуск потока диспетчера
 			new Thread(new Dispatcher()).start();
 
-			System.out.println("✅ Сервер запущен. Ожидание входящих подключений...");
+			System.out.println("✅ Сервер запущен на порту " + port + ". Ожидание входящих подключений...");
 
 			// Ожидание входящих подключений
 			while (true) {
@@ -43,7 +53,7 @@ public class MessengerServer {
 		} catch (BindException e) {
 			System.out.println("❌ Ошибка: Порт уже используется. Пожалуйста, убедитесь, что сервер не запущен дважды.");
 		} catch (Exception ex) {
-			System.out.println("❌ Ошибка при запуске сервера: " + ex.getMessage());
+			System.out.println("❌ Ошибка при запуске сервера на порту " + port + ": " + ex.getMessage());
 			ex.printStackTrace();
 		}
 	}
@@ -67,17 +77,11 @@ public class MessengerServer {
 
 		for (Session session : sessions) {
 			int correspondentId = session.getCorrespondentId();
-			if (correspondentId == -1) {
-				System.out.println("⚠️ [MessengerServer] Неавторизованная сессия пропущена при отправке списка.");
-				continue;
-			}
+			if (correspondentId == -1 || !session.isAlive()) continue;
 
 			Correspondent correspondent = Correspondent.getCorrespondent(correspondentId);
 			if (correspondent != null) {
 				listPacket.addItem(correspondent.getId(), correspondent.getLogin());
-				System.out.println("🟢 [MessengerServer] Добавлен пользователь в список: " + correspondent.getLogin());
-			} else {
-				System.out.println("❌ [MessengerServer] Не удалось найти пользователя с ID: " + correspondentId);
 			}
 		}
 

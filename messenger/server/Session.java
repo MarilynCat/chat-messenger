@@ -28,7 +28,7 @@ public class Session extends Thread {
 
                     System.out.println("📤 [Session] Пакет перед отправкой: " + p.getType());
                     p.writePacket(writer);
-                    writer.flush();
+                    flush();  // 🔹 Явный вызов flush() для немедленной отправки
                     if (writer.checkError()) {
                         System.out.println("❗️ [Session] Ошибка при отправке данных.");
                     } else {
@@ -53,26 +53,52 @@ public class Session extends Thread {
 
     public void sendPacket(Packet p) {
         if (p != null) {
-            if (socket.isClosed()) {
-                System.out.println("❗️ [Session] Попытка отправить пакет через закрытое соединение.");
-                return;
-            }
             toClientQueue.add(p);
+            flush();  // 🔹 Добавлен flush() для немедленной отправки данных
             System.out.println("✅ [Session] Пакет добавлен в очередь отправки: " + p.getType());
         } else {
             System.out.println("❌ [Session] Попытка отправки null-пакета. Пропущено.");
         }
     }
 
+    // 🔹 Улучшенный метод flush()
+    public void flush() {
+        if (writer != null) {
+            try {
+                writer.flush();
+
+                // 🔹 Дополнительная проверка на активность сокета
+                if (!socket.isClosed() && socket.isConnected()) {
+                    System.out.println("✅ [Session] Поток данных успешно отправлен (flush).");
+                } else {
+                    System.out.println("❗️ [Session] Flush вызван на закрытом сокете.");
+                }
+            } catch (Exception e) {
+                System.out.println("❌ [Session] Ошибка при flush(): " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("❗️ [Session] Поток записи (writer) не существует.");
+        }
+    }
+
     public void run() {
-        try (socket) {
+        try {
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
 
             socket.setSoTimeout(10000);  // Увеличен тайм-аут до 10 секунд
 
             while (!socket.isClosed()) {
+                if (!reader.ready()) {
+                    System.out.println("❗️ [Session] Поток данных не готов к чтению.");
+                    Thread.sleep(200); // Задержка для предотвращения ненужных итераций
+                    continue;
+                }
+
                 String rawData = reader.readLine();
+                System.out.println("📥 [Session] Получены сырые данные: " + rawData);
+
                 if (rawData == null || rawData.isEmpty()) {
                     System.out.println("❗️ [Session] Пустая строка получена. Возможно, временный разрыв соединения.");
                     Thread.sleep(200); // Задержка для повторной попытки
@@ -89,10 +115,20 @@ public class Session extends Thread {
                 if (p instanceof HiPacket hiPacket) {
                     if (isValidUser(hiPacket.login, hiPacket.password)) {
                         System.out.println("✅ [Session] Успешная авторизация пользователя: " + hiPacket.login);
-                        correspondent = new Correspondent(getCorrespondentId(), hiPacket.login, hiPacket.password);
+
+                        correspondent = Correspondent.getCorrespondent(hiPacket.login);
+                        if (correspondent == null) {
+                            System.out.println("❗️ [Session] Создаётся новый Correspondent для: " + hiPacket.login);
+                            correspondent = new Correspondent(getCorrespondentId(), hiPacket.login, hiPacket.password);
+                            Correspondent.registerCorrespondent(correspondent);
+                        }
+
+                        correspondent.activeSession = this;
 
                         if (writer != null) {
+                            System.out.println("📤 [Session] Отправляем WelcomePacket.");
                             sendPacket(new WelcomePacket());
+                            flush();
                             sendUserListToClient();
                             System.out.println("✅ [Session] WelcomePacket успешно отправлен.");
                         } else {
@@ -101,6 +137,7 @@ public class Session extends Thread {
                     } else {
                         System.out.println("❌ [Session] Неверный логин или пароль.");
                         sendPacket(new ErrorPacket("Invalid credentials"));
+                        flush();
                         close();
                     }
                 }
@@ -133,6 +170,7 @@ public class Session extends Thread {
         userListPacket.addItem(3, "User3");
 
         sendPacket(userListPacket);
+        flush();
         System.out.println("📤 [Session] Список пользователей отправлен клиенту.");
     }
 
@@ -141,8 +179,17 @@ public class Session extends Thread {
             if (correspondent != null) {
                 correspondent.activeSession = null;
             }
-            writerThread.interrupt();
-            socket.close();
+
+            if (!socket.isClosed()) {
+                socket.shutdownOutput(); // 🔹 Безопасное закрытие потока данных
+                socket.close();
+            }
+
+            if (writerThread != null) {
+                writerThread.interrupt();
+            }
+
+            System.out.println("🛑 [Session] Соединение закрыто.");
         } catch (Exception ex) {
             System.out.println("❌ [Session] Ошибка при закрытии session.Session: " + ex.getMessage());
             ex.printStackTrace();

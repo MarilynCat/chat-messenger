@@ -62,7 +62,7 @@ public class LoginWindow extends JFrame {
         }
 
         try {
-            ClientConnection connection = new ClientConnection("localhost", 10001, packet -> {
+            ClientConnection connection = new ClientConnection("localhost", 20000, packet -> {
                 if (ChatWindow.getInstance() != null) {
                     ChatWindow.getInstance().displayIncomingPacket(packet);
                 }

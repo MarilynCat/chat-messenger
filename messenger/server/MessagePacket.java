@@ -14,10 +14,16 @@ public class MessagePacket extends Packet {
     }
 
     public void writeBody(PrintWriter writer) throws Exception {
+        if (correspondentId <= 0 || text == null || text.trim().isEmpty()) {
+            System.out.println("❌ [MessagePacket] Неверные данные для отправки.");
+            return;
+        }
+
         writer.println(correspondentId);
         writer.println(text);
         writer.println();
     }
+
 
     public void readBody(BufferedReader reader) throws Exception {
         var correspondentIdText = reader.readLine();

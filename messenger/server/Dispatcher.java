@@ -45,7 +45,7 @@ public class Dispatcher implements Runnable {
 
                 if (hiP.login == null || hiP.password == null) {
                     System.out.println("❌ [Dispatcher] Ошибка: Поля логина или пароля пустые.");
-                    session.sendPacket(new ErrorPacket("Empty login or password."));
+                    sendPacketWithFlush(session, new ErrorPacket("Empty login or password."));
                     session.close();
                     return;
                 }
@@ -54,7 +54,7 @@ public class Dispatcher implements Runnable {
 
                 if (correspondent == null || !Correspondent.validateUser(hiP.login, hiP.password)) {
                     System.out.println("❌ [Dispatcher] Ошибка: Неверный логин или пароль.");
-                    session.sendPacket(new ErrorPacket("Invalid credentials."));
+                    sendPacketWithFlush(session, new ErrorPacket("Invalid credentials."));
                     session.close();
                     return;
                 }
@@ -62,9 +62,11 @@ public class Dispatcher implements Runnable {
                 session.correspondent = correspondent;
                 correspondent.activeSession = session;
 
-                System.out.println("✅ [Dispatcher] Пользователь успешно авторизован: " + hiP.login);
-                session.sendPacket(new WelcomePacket());
+                System.out.println("📤 [Dispatcher] Отправляем WelcomePacket пользователю: " + hiP.login);
+                sendPacketWithFlush(session, new WelcomePacket());
+                System.out.println("✅ [Dispatcher] WelcomePacket успешно отправлен.");
             }
+
 
             case ListPacket listP -> {
                 System.out.println("✅ [Dispatcher] Получен ListPacket с пользователями: " + listP.items.size());
@@ -76,19 +78,25 @@ public class Dispatcher implements Runnable {
             case MessagePacket msgP -> {
                 System.out.println("💬 [Dispatcher] Сообщение от ID: " + session.getCorrespondentId());
 
+                if (msgP.text == null || msgP.text.trim().isEmpty()) {
+                    System.out.println("❌ [Dispatcher] Пустое сообщение не отправлено.");
+                    sendPacketWithFlush(session, new ErrorPacket("Empty message."));
+                    return;
+                }
+
                 var recipientSession = findSessionById(msgP.correspondentId);
-                if (recipientSession != null) {
+                if (recipientSession != null && recipientSession.isAlive()) {
                     System.out.println("📨 [Dispatcher] Сообщение отправлено пользователю ID: " + msgP.correspondentId);
-                    recipientSession.sendPacket(msgP);
+                    sendPacketWithFlush(recipientSession, msgP);
                 } else {
-                    System.out.println("❌ [Dispatcher] Получатель ID " + msgP.correspondentId + " не найден.");
-                    session.sendPacket(new ErrorPacket("Recipient not found."));
+                    System.out.println("❌ [Dispatcher] Получатель ID " + msgP.correspondentId + " не найден или неактивен.");
+                    sendPacketWithFlush(session, new ErrorPacket("Recipient not found or inactive."));
                 }
             }
 
             default -> {
                 System.out.println("❗️ [Dispatcher] Неизвестный пакет: " + p.getType());
-                session.sendPacket(new ErrorPacket("Unknown packet type."));
+                sendPacketWithFlush(session, new ErrorPacket("Unknown packet type."));
             }
         }
     }
@@ -109,5 +117,16 @@ public class Dispatcher implements Runnable {
 
         System.out.println("❌ [Dispatcher] Ошибка: Сессия с ID " + correspondentId + " не найдена.");
         return null;
+    }
+
+    // ✅ Добавленный метод для корректной отправки с flush()
+    private void sendPacketWithFlush(Session session, Packet packet) {
+        if (session != null && packet != null) {
+            session.sendPacket(packet);
+            session.flush();
+            System.out.println("✅ [Dispatcher] Пакет успешно отправлен с flush(): " + packet.getType());
+        } else {
+            System.out.println("❗️ [Dispatcher] Не удалось отправить пакет. Параметры null.");
+        }
     }
 }
