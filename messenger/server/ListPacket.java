@@ -21,8 +21,12 @@ public class ListPacket extends Packet {
 
     // Добавление пользователя в список
     public void addItem(int id, String login) {
-        var item = new CorrespondentItem(id, login);
-        items.add(item);
+        if (login != null && !login.trim().isEmpty()) {
+            var item = new CorrespondentItem(id, login);
+            items.add(item);
+        } else {
+            System.err.println("❌ [ListPacket] Попытка добавить пользователя с пустым логином.");
+        }
     }
 
     @Override
@@ -37,29 +41,34 @@ public class ListPacket extends Packet {
             writer.println(ci.id);      // Пишем ID пользователя
             writer.println(ci.login);   // Пишем имя пользователя
         }
-        writer.println();  // Пустая строка для обозначения конца списка
+        writer.println();  // ✅ Пустая строка для обозначения конца списка
     }
 
     // Метод для чтения данных из потока
     @Override
     public void readBody(BufferedReader reader) throws Exception {
         items.clear();  // Очищаем список перед добавлением данных
+        System.out.println("🔎 [ListPacket] Начато чтение данных о пользователях...");
+
         while (true) {
             var firstLine = reader.readLine();
-            if (firstLine == null || firstLine.isEmpty()) {
-                break;  // Конец данных
+            if (firstLine == null || firstLine.isEmpty()) {  // ✅ Корректное завершение чтения
+                System.out.println("✅ [ListPacket] Прочитано " + items.size() + " пользователей.");
+                break;
             }
 
             var secondLine = reader.readLine();
-            if (secondLine == null) {
-                break;  // Предотвращение ошибок при некорректных данных
+            if (secondLine == null || secondLine.isEmpty()) {
+                System.out.println("✅ [ListPacket] Прочитано " + items.size() + " пользователей.");
+                break;
             }
 
             try {
                 int id = Integer.parseInt(firstLine);
-                addItem(id, secondLine); // Добавляем пользователя в список
+                addItem(id, secondLine);
+                System.out.println("👤 [ListPacket] Добавлен пользователь: " + secondLine);
             } catch (NumberFormatException e) {
-                System.err.println("Ошибка при чтении ID пользователя: " + e.getMessage());
+                System.err.println("❌ [ListPacket] Ошибка при чтении ID пользователя: " + e.getMessage());
             }
         }
     }

@@ -18,8 +18,8 @@ public class ChatWindow extends JFrame {
     private DefaultListModel<String> userListModel;
     private ClientConnection connection;
     private String username;
-    private String selectedUser;  // Собеседник для отправки сообщений
-    private final Map<String, Integer> userIdMap = new HashMap<>();  // Хранение ID пользователей
+    private String selectedUser;
+    private final Map<String, Integer> userIdMap = new HashMap<>();
 
     public ChatWindow(ClientConnection connection, String username) {
         this.connection = connection;
@@ -32,16 +32,14 @@ public class ChatWindow extends JFrame {
         setLocationRelativeTo(null);
         initUI();
 
-        // Добавляем текущего пользователя в список
         userListModel.addElement("Вы: " + username);
 
-        // Выбор собеседника по клику
         userList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 String selected = userList.getSelectedValue();
                 if (selected != null && !selected.startsWith("Вы: ")) {
-                    selectedUser = selected;  // Устанавливаем выбранного собеседника
+                    selectedUser = selected;
                     chatArea.append("💬 Начат диалог с " + selectedUser + "\n");
                 }
             }
@@ -88,15 +86,18 @@ public class ChatWindow extends JFrame {
             return;
         }
 
-        int correspondentId = userIdMap.get(selectedUser);
-        if (correspondentId == -1) {
-            chatArea.append("❌ Ошибка: Собеседник не авторизован.\n");
+        Integer correspondentId = userIdMap.get(selectedUser);
+
+        if (correspondentId == null || correspondentId == -1) {
+            chatArea.append("❌ Ошибка: Собеседник не найден или оффлайн.\n");
             return;
         }
 
         MessagePacket msgPacket = new MessagePacket();
+        msgPacket.senderId = connection.getCurrentUserId();
         msgPacket.correspondentId = correspondentId;
         msgPacket.text = text;
+
         connection.sendPacket(msgPacket);
 
         displayOutgoingMessage("Me to " + selectedUser + ": " + text);
@@ -110,52 +111,33 @@ public class ChatWindow extends JFrame {
             ListPacket listPacket = (ListPacket) packet;
             System.out.println("✅ [ChatWindow] Получен ListPacket с количеством пользователей: " + listPacket.items.size());
             updateUserList(listPacket);
+        }
 
-            if (listPacket.items.isEmpty()) {
-                chatArea.append("❗️Нет доступных пользователей для диалога.\n");
-            } else {
-                for (ListPacket.CorrespondentItem item : listPacket.items) {
-                    System.out.println("🟢 [ChatWindow] Пользователь в списке: " + item.login);
-                }
-            }
-
-        } else if (packet instanceof EchoPacket) {
-            EchoPacket echo = (EchoPacket) packet;
-            displayIncomingMessage("Echo: " + echo.text);
-
-        } else if (packet instanceof MessagePacket) {
+        if (packet instanceof MessagePacket) {
             MessagePacket msg = (MessagePacket) packet;
-            Correspondent sender = Correspondent.getCorrespondent(msg.correspondentId);
-
-            if (sender != null) {
-                displayIncomingMessage("📩 " + sender.getLogin() + ": " + msg.text);
-            } else {
-                displayIncomingMessage("❓ Сообщение от неизвестного пользователя: " + msg.text);
-            }
-
-        } else {
-            displayIncomingMessage("Received: " + packet.getType());
-            System.out.println("❗️ [ChatWindow] Неизвестный тип пакета: " + packet.getType());
+            displayIncomingMessage("📩 Сообщение от пользователя ID " + msg.senderId + ": " + msg.text);
         }
     }
 
     private void updateUserList(ListPacket listPacket) {
         SwingUtilities.invokeLater(() -> {
             userListModel.clear();
-            userListModel.addElement("Вы: " + username); // Добавляем текущего пользователя
-            userIdMap.clear();  // Очищаем старые ID для корректного отображения
+            userListModel.addElement("Вы: " + username);
+            userIdMap.clear();
+
+            if (listPacket == null || listPacket.items.isEmpty()) {
+                chatArea.append("❗️Нет доступных пользователей для диалога.\n");
+                System.out.println("❗️ [ChatWindow] Получен пустой список пользователей!");
+                return;
+            }
 
             for (ListPacket.CorrespondentItem item : listPacket.items) {
-                if (!item.login.equals(username)) {
-                    userListModel.addElement(item.login);
-                    userIdMap.put(item.login, item.id); // Сохраняем ID пользователей
-                    System.out.println("🟢 Пользователь добавлен в список: " + item.login);
-                }
+                userListModel.addElement(item.login);
+                userIdMap.put(item.login, item.id);
+                System.out.println("➕ [ChatWindow] Добавлен пользователь в список: " + item.login);
             }
 
-            if (userIdMap.isEmpty()) {
-                chatArea.append("❗️Нет доступных пользователей для диалога.\n");
-            }
+            chatArea.append("✅ Список пользователей обновлён.\n");
         });
     }
 

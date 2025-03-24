@@ -25,23 +25,15 @@ public abstract class Packet {
 
     // ✅ Улучшенная диагностика в методе отправки пакетов
     public void writePacket(PrintWriter writer) {
-        try {
-            System.out.println("📤 [Packet] Отправка данных: " + getType());
-            writer.println(getType());
-            writeBody(writer);
-            writer.println(END_MARKER); // Явный конец пакета
-            writer.flush();
-
-            if (writer.checkError()) {
-                System.out.println("❗️ [Packet] Ошибка при отправке данных.");
-            } else {
-                System.out.println("✅ [Packet] Данные успешно отправлены: " + getType());
-            }
-        } catch (Exception x) {
-            System.out.println("❌ [Packet] Ошибка при отправке пакета: " + x.getMessage());
-            x.printStackTrace();
+        if (this instanceof MessagePacket msg) {
+            writer.println("MESSAGE");
+            writer.println("From: " + msg.senderId);
+            writer.println("To: " + msg.correspondentId);
+            writer.println("Text: " + msg.text);
+            writer.println("###END###");
         }
     }
+
 
     public static Packet readPacket(BufferedReader reader) {
         try {

@@ -1,8 +1,11 @@
 package server;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 public class Correspondent {
     private final int id;
@@ -10,6 +13,7 @@ public class Correspondent {
     private final String password; // Поле для пароля
 
     public Session activeSession;
+    private final List<MessagePacket> offlineMessages = new ArrayList<>();  // Список для хранения оффлайн сообщений
 
     // Конструктор с паролем
     public Correspondent(int id, String login, String password) {
@@ -50,8 +54,8 @@ public class Correspondent {
     }
 
     // Список всех пользователей
-    public static Collection<Correspondent> listAll() {
-        return correspondentById.values();
+    public static Collection<Correspondent> getAllCorrespondents() {
+        return Collections.unmodifiableCollection(correspondentById.values());
     }
 
     // Валидация логина и пароля
@@ -66,4 +70,21 @@ public class Correspondent {
         }
     }
 
+    // ==============================
+    // Метод для сохранения оффлайн сообщений
+    // ==============================
+    public void storeOfflineMessage(MessagePacket msg) {
+        offlineMessages.add(msg);
+        System.out.println("⚠️ [Correspondent] Сообщение сохранено для оффлайн пользователя: " + login);
+    }
+
+    // Получение всех оффлайн сообщений
+    public List<MessagePacket> getOfflineMessages() {
+        return offlineMessages;
+    }
+
+    // Очистка оффлайн сообщений после их доставки
+    public void clearOfflineMessages() {
+        offlineMessages.clear();
+    }
 }

@@ -1,11 +1,7 @@
 package client;
 
-import server.HiPacket;
-import server.Packet;
-import server.ByePacket;
-import server.WelcomePacket;
-import server.ErrorPacket;
-import server.ListPacket;
+import server.*;
+import server.packets.RequestUserListPacket; // ✅ Добавлен импорт для RequestUserListPacket
 
 import java.io.*;
 import java.net.*;
@@ -18,6 +14,21 @@ public class ClientConnection extends Thread {
     private final LinkedBlockingQueue<Packet> toServerQueue = new LinkedBlockingQueue<>();
     private Thread writerThread;
     private MessageListener messageListener;
+
+    private Correspondent correspondent;
+
+    public int getCurrentUserId() {
+        if (correspondent != null) {
+            return correspondent.getId();
+        } else {
+            System.out.println("❗️ [ClientConnection] Ошибка: correspondent не инициализирован.");
+            return -1;
+        }
+    }
+
+    public void setCorrespondent(Correspondent correspondent) {
+        this.correspondent = correspondent;
+    }
 
     public interface MessageListener {
         void onPacketReceived(Packet packet);
@@ -78,36 +89,42 @@ public class ClientConnection extends Thread {
     @Override
     public void run() {
         try {
-            int retryCount = 0; // Счётчик неудачных попыток чтения
-            while (!socket.isClosed()) {
+            int retryCount = 0;
+            final int MAX_RETRIES = 50;
+            final int RETRY_DELAY_MS = 100;
+
+            while (!socket.isClosed() && retryCount < MAX_RETRIES) {
                 System.out.println("🔎 [ClientConnection] Ожидание пакета от сервера...");
 
-                // ✅ Добавлена проверка на готовность потока
                 if (!reader.ready()) {
-                    System.out.println("⏳ [ClientConnection] Поток данных не готов к чтению. Попытка " + (retryCount + 1));
-                    System.out.println("🟠 [ClientConnection] Проверяем состояние сокета: "
-                            + (!socket.isClosed() ? "Открыт" : "Закрыт"));
+                    retryCount++;
+                    System.out.println("⏳ [ClientConnection] Поток данных не готов к чтению. Попытка " + retryCount);
+                    Thread.sleep(RETRY_DELAY_MS);
+                    continue;
                 }
-
 
                 Packet packet = Packet.readPacket(reader);
 
                 if (packet == null) {
-                    System.out.println("❗️ [ClientConnection] Пакет пустой или некорректный, попытка " + (retryCount + 1));
+                    System.out.println("❗️ [ClientConnection] Пакет пустой или некорректный, попытка " + retryCount);
                     retryCount++;
+                    Thread.sleep(RETRY_DELAY_MS);
                     continue;
                 }
 
-                retryCount = 0; // Сбрасываем счётчик при успешном чтении
+                retryCount = 0;
 
                 if (packet instanceof WelcomePacket) {
                     System.out.println("✅ [ClientConnection] Успешная авторизация. Показ списка пользователей.");
+                    requestUserList();
                 }
 
                 if (packet instanceof ListPacket listPacket) {
-                    System.out.println("📋 [ClientConnection] Список пользователей получен:");
-                    for (var item : listPacket.items) {
-                        System.out.println("👤 Пользователь: " + item.login);
+                    System.out.println("✅ [ClientConnection] Получен ListPacket с количеством пользователей: " + listPacket.items.size());
+                    if (messageListener != null) {
+                        messageListener.onPacketReceived(listPacket);
+                    } else {
+                        System.out.println("❗️ [ClientConnection] MessageListener не установлен! Список пользователей может не отобразиться.");
                     }
                 }
 
@@ -121,6 +138,12 @@ public class ClientConnection extends Thread {
                     messageListener.onPacketReceived(packet);
                 }
             }
+
+            if (retryCount >= MAX_RETRIES) {
+                System.out.println("🛑 [ClientConnection] Превышено количество попыток. Закрываем соединение.");
+                close();
+            }
+
         } catch (Exception e) {
             System.out.println("❌ [ClientConnection] Ошибка при чтении пакета: " + e.getMessage());
             e.printStackTrace();
@@ -129,18 +152,28 @@ public class ClientConnection extends Thread {
         }
     }
 
+    private void requestUserList() {
+        System.out.println("📋 [ClientConnection] Запрос списка пользователей...");
+        RequestUserListPacket requestUserListPacket = new RequestUserListPacket();
+        sendPacket(requestUserListPacket);
+    }
 
     public void close() {
         try {
             System.out.println("🛑 [ClientConnection] Закрытие подключения...");
 
-            if (writerThread != null && writerThread.isAlive()) {
+            if (writerThread != null) {
                 writerThread.interrupt();
-                writerThread.join(1000);  // 🔹 Ограничение ожидания до 1 секунды
+                try {
+                    writerThread.join(1000);
+                } catch (InterruptedException e) {
+                    System.out.println("❗️ [ClientConnection] Поток был прерван во время ожидания завершения.");
+                    Thread.currentThread().interrupt();
+                }
             }
 
             if (socket != null && !socket.isClosed()) {
-                socket.shutdownOutput();  // 🔹 Закрытие вывода для корректного завершения
+                socket.shutdownOutput();
                 socket.close();
             }
         } catch (Exception ex) {
@@ -148,5 +181,4 @@ public class ClientConnection extends Thread {
             ex.printStackTrace();
         }
     }
-
 }
