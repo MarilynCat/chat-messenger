@@ -9,19 +9,20 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.util.HashMap;
 import java.util.Map;
-import java.awt.geom.RoundRectangle2D;
 
 public class ChatWindow extends JFrame {
     private static ChatWindow instance;
     private JTextField messageField;
     private JList<String> userList;
-    private DefaultListModel<String> userListModel;
+    private DefaultListModel<String> userListModel = new DefaultListModel<>();
     private ClientConnection connection;
     private String username;
     private String selectedUser;
     private final Map<String, Integer> userIdMap = new HashMap<>();
+    private final Map<String, String> lastMessages = new HashMap<>();
     private JPanel chatMessagesPanel;
     private JLabel chatTitle;
 
@@ -45,9 +46,8 @@ public class ChatWindow extends JFrame {
                 String selected = userList.getSelectedValue();
                 if (selected != null && !selected.startsWith("Вы: ")) {
                     selectedUser = selected;
-                    chatTitle.setText(selectedUser); // ✅ заголовок обновляется
+                    chatTitle.setText(selectedUser);
                     addMessageBubble("💬 Начат диалог с " + selectedUser, false);
-
 
                     if (!userIdMap.containsKey(selectedUser)) {
                         addMessageBubble("❌ Ошибка: Собеседник не найден в системе.", false);
@@ -70,11 +70,11 @@ public class ChatWindow extends JFrame {
         profileLabel.setBorder(new EmptyBorder(10, 10, 10, 10));
         contactsPanel.add(profileLabel);
 
-        userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
+        userList.setCellRenderer(new ContactListRenderer());
         userList.setBackground(new Color(40, 40, 40));
-        userList.setForeground(Color.WHITE);
         userList.setSelectionBackground(new Color(50, 200, 100));
+        userList.setFixedCellHeight(60);
 
         JScrollPane userScrollPane = new JScrollPane(userList);
         contactsPanel.add(userScrollPane);
@@ -141,8 +141,6 @@ public class ChatWindow extends JFrame {
     }
 
     public void displayIncomingPacket(Packet packet) {
-        System.out.println("📩 [ChatWindow] Пакет получен: " + packet.getType());
-
         if (packet instanceof ListPacket listPacket) {
             updateUserList(listPacket);
         }
@@ -175,11 +173,17 @@ public class ChatWindow extends JFrame {
     }
 
     public void displayIncomingMessage(String message) {
-        SwingUtilities.invokeLater(() -> addMessageBubble(message, false));
+        SwingUtilities.invokeLater(() -> {
+            addMessageBubble(message, false);
+            updateLastMessagePreview(selectedUser, message);
+        });
     }
 
     public void displayOutgoingMessage(String message) {
-        SwingUtilities.invokeLater(() -> addMessageBubble(message, true));
+        SwingUtilities.invokeLater(() -> {
+            addMessageBubble(message, true);
+            updateLastMessagePreview(selectedUser, message);
+        });
     }
 
     private void addMessageBubble(String text, boolean outgoing) {
@@ -207,19 +211,20 @@ public class ChatWindow extends JFrame {
         vertical.setValue(vertical.getMaximum());
     }
 
+    public void updateLastMessagePreview(String user, String message) {
+        lastMessages.put(user, message);
+        userList.repaint();
+    }
+
+    public String getLastMessagePreviewForUser(String user) {
+        return lastMessages.getOrDefault(user, "");
+    }
+
     public static ChatWindow getInstance() {
         return instance;
     }
 }
 
-// 👇 Добавь после класса ChatWindow (в этом же файле):
-
-// Было:
-// - setBorder(...) → 10, 15, 10, 15 (лишний padding справа у входящих)
-// - setMaximumSize(..., Integer.MAX_VALUE) → баблы растягиваются по высоте
-// - outgoing хвостик кривой: не выровнен по нижнему краю
-
-// Стало:
 class ChatBubbleArea extends JTextArea {
     private final boolean outgoing;
 
@@ -242,7 +247,6 @@ class ChatBubbleArea extends JTextArea {
 
     @Override
     public Dimension getPreferredSize() {
-        // ✅ предотвращаем растягивание по высоте
         Dimension preferred = super.getPreferredSize();
         preferred.width = Math.min(preferred.width, 400);
         return preferred;
@@ -287,7 +291,86 @@ class ChatBubbleArea extends JTextArea {
     }
 }
 
+class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
+    private final JLabel avatarLabel = new JLabel();
+    private final JLabel nameLabel = new JLabel();
+    private final JLabel previewLabel = new JLabel();
+    private final JSeparator divider = new JSeparator();
+
+    public ContactListRenderer() {
+        setLayout(new BorderLayout(10, 0));
+        setBackground(new Color(40, 40, 40));
+        setBorder(new EmptyBorder(5, 10, 5, 10));
+
+        avatarLabel.setPreferredSize(new Dimension(36, 36));
+        avatarLabel.setOpaque(true);
+        avatarLabel.setBackground(new Color(80, 80, 80));
+        avatarLabel.setBorder(null);
+        avatarLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        avatarLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        avatarLabel.setForeground(Color.WHITE);
+        avatarLabel.setUI(new javax.swing.plaf.basic.BasicLabelUI() {
+            @Override
+            public void paint(Graphics g, JComponent c) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(avatarLabel.getBackground());
+                g2.fillOval(0, 0, avatarLabel.getWidth(), avatarLabel.getHeight());
+                super.paint(g, c);
+                g2.dispose();
+            }
+        });
+
+        JPanel textPanel = new JPanel();
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.setOpaque(false);
+        nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        nameLabel.setForeground(Color.WHITE);
+        previewLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        previewLabel.setForeground(Color.LIGHT_GRAY);
+        textPanel.add(nameLabel);
+        textPanel.add(previewLabel);
+
+        add(avatarLabel, BorderLayout.WEST);
+        add(textPanel, BorderLayout.CENTER);
+
+        // Настраиваем divider, но не скрываем/показываем
+        divider.setPreferredSize(new Dimension(1, 1));
+        divider.setBackground(new Color(60, 60, 60));
+        add(divider, BorderLayout.SOUTH);
+    }
 
 
+    @Override
+    public Component getListCellRendererComponent(JList<? extends String> list, String value,
+                                                  int index, boolean isSelected, boolean cellHasFocus) {
+        // Получаем логин, убираем префикс "Вы: " если он есть
+        String login = value.startsWith("Вы: ") ? value.substring(4) : value;
+        nameLabel.setText(login);
 
+        // Настраиваем аватар: первая буква имени, фон и граница
+        avatarLabel.setText(login.substring(0, 1).toUpperCase());
+        avatarLabel.setBackground(new Color(100, 100, 100));
+        avatarLabel.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 60), 1, true));
 
+        // Обновляем фон всего элемента в зависимости от выделения
+        setBackground(isSelected ? new Color(50, 200, 100) : new Color(40, 40, 40));
+
+        // Получаем превью последнего сообщения и обрезаем, если слишком длинное
+        String preview = ChatWindow.getInstance().getLastMessagePreviewForUser(login);
+        if (preview != null && preview.length() > 40) {
+            preview = preview.substring(0, 40) + "...";
+        }
+        previewLabel.setText(preview != null ? preview : " ");
+
+        // Показываем разделитель, если элемент не последний
+        if (index < list.getModel().getSize() - 1) {
+            divider.setVisible(true);
+        } else {
+            divider.setVisible(false);
+        }
+
+        return this;
+    }
+
+}
