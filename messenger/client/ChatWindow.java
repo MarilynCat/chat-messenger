@@ -11,10 +11,10 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.Map;
+import java.awt.geom.RoundRectangle2D;
 
 public class ChatWindow extends JFrame {
     private static ChatWindow instance;
-    private JTextArea chatArea;
     private JTextField messageField;
     private JList<String> userList;
     private DefaultListModel<String> userListModel;
@@ -22,6 +22,7 @@ public class ChatWindow extends JFrame {
     private String username;
     private String selectedUser;
     private final Map<String, Integer> userIdMap = new HashMap<>();
+    private JPanel chatMessagesPanel;
 
     public ChatWindow(ClientConnection connection, String username) {
         this.connection = connection;
@@ -34,10 +35,7 @@ public class ChatWindow extends JFrame {
         setLocationRelativeTo(null);
         initUI();
 
-        // Добавление текущего пользователя
         userListModel.addElement("Вы: " + username);
-
-        // Автоматический запрос списка пользователей после запуска
         connection.sendPacket(new RequestUserListPacket());
 
         userList.addMouseListener(new MouseAdapter() {
@@ -46,10 +44,10 @@ public class ChatWindow extends JFrame {
                 String selected = userList.getSelectedValue();
                 if (selected != null && !selected.startsWith("Вы: ")) {
                     selectedUser = selected;
-                    chatArea.append("💬 Начат диалог с " + selectedUser + "\n");
+                    addMessageBubble("💬 Начат диалог с " + selectedUser, false);
 
                     if (!userIdMap.containsKey(selectedUser)) {
-                        chatArea.append("❌ Ошибка: Собеседник не найден в системе.\n");
+                        addMessageBubble("❌ Ошибка: Собеседник не найден в системе.", false);
                     }
                 }
             }
@@ -59,7 +57,6 @@ public class ChatWindow extends JFrame {
     private void initUI() {
         setLayout(new BorderLayout());
 
-        // ---------------------- Список контактов (левая панель) ----------------------
         JPanel contactsPanel = new JPanel();
         contactsPanel.setLayout(new BoxLayout(contactsPanel, BoxLayout.Y_AXIS));
         contactsPanel.setBackground(new Color(30, 30, 30));
@@ -68,7 +65,6 @@ public class ChatWindow extends JFrame {
         JLabel profileLabel = new JLabel("Вы: " + username);
         profileLabel.setForeground(Color.WHITE);
         profileLabel.setBorder(new EmptyBorder(10, 10, 10, 10));
-
         contactsPanel.add(profileLabel);
 
         userListModel = new DefaultListModel<>();
@@ -80,9 +76,7 @@ public class ChatWindow extends JFrame {
         JScrollPane userScrollPane = new JScrollPane(userList);
         contactsPanel.add(userScrollPane);
 
-        // ---------------------- Панель сообщений (правая панель) ----------------------
-        JPanel chatPanel = new JPanel();
-        chatPanel.setLayout(new BorderLayout());
+        JPanel chatPanel = new JPanel(new BorderLayout());
         chatPanel.setBackground(new Color(20, 20, 20));
 
         JLabel chatTitle = new JLabel("Выберите собеседника", JLabel.CENTER);
@@ -91,18 +85,18 @@ public class ChatWindow extends JFrame {
         chatTitle.setOpaque(true);
         chatTitle.setBorder(new EmptyBorder(10, 0, 10, 0));
 
-        chatArea = new JTextArea();
-        chatArea.setEditable(false);
-        chatArea.setBackground(new Color(25, 25, 25));
-        chatArea.setForeground(Color.WHITE);
-        chatArea.setBorder(new EmptyBorder(10, 10, 10, 10));
+        chatMessagesPanel = new JPanel();
+        chatMessagesPanel.setLayout(new BoxLayout(chatMessagesPanel, BoxLayout.Y_AXIS));
+        chatMessagesPanel.setBackground(new Color(25, 25, 25));
 
-        JScrollPane chatScrollPane = new JScrollPane(chatArea);
+        JScrollPane chatScrollPane = new JScrollPane(chatMessagesPanel);
+        chatScrollPane.setBorder(null);
+        chatScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        chatScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
         chatPanel.add(chatTitle, BorderLayout.NORTH);
         chatPanel.add(chatScrollPane, BorderLayout.CENTER);
 
-        // ---------------------- Панель ввода сообщений ----------------------
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.setBackground(new Color(30, 30, 30));
 
@@ -114,11 +108,9 @@ public class ChatWindow extends JFrame {
 
         chatPanel.add(inputPanel, BorderLayout.SOUTH);
 
-        // ---------------------- Добавление панелей в общий макет ----------------------
         add(contactsPanel, BorderLayout.WEST);
         add(chatPanel, BorderLayout.CENTER);
 
-        // Добавление событий
         messageField.addActionListener(e -> sendMessage());
         sendButton.addActionListener(e -> sendMessage());
     }
@@ -128,19 +120,13 @@ public class ChatWindow extends JFrame {
         if (text.isEmpty()) return;
 
         if (selectedUser == null || selectedUser.equals("Вы: " + username) || !userIdMap.containsKey(selectedUser)) {
-            chatArea.append("⚠️ Пожалуйста, выберите корректного собеседника из списка.\n");
-            return;
-        }
-
-        if (!userIdMap.containsKey(selectedUser)) {
-            chatArea.append("❌ Ошибка: Собеседник не найден в системе.\n");
+            addMessageBubble("⚠️ Пожалуйста, выберите корректного собеседника из списка.", false);
             return;
         }
 
         Integer correspondentId = userIdMap.get(selectedUser);
-
         if (correspondentId == null || correspondentId == -1) {
-            chatArea.append("❌ Ошибка: Собеседник не найден или оффлайн.\n");
+            addMessageBubble("❌ Ошибка: Собеседник не найден или оффлайн.", false);
             return;
         }
 
@@ -158,51 +144,128 @@ public class ChatWindow extends JFrame {
             updateUserList(listPacket);
         }
 
-        if (packet instanceof MessagePacket) {
-            MessagePacket msg = (MessagePacket) packet;
+        if (packet instanceof MessagePacket msg) {
             displayIncomingMessage("📩 Сообщение от пользователя ID " + msg.senderId + ": " + msg.text);
         }
-//
-//        if (packet instanceof WelcomePacket) {
-//            chatArea.append("✅ Авторизация успешна. Список пользователей обновляется...\n");
-//            connection.sendPacket(new RequestUserListPacket());  // ✅ Повторный запрос списка пользователей
-//        }
-
     }
 
     private void updateUserList(ListPacket listPacket) {
         SwingUtilities.invokeLater(() -> {
             userListModel.clear();
-            userListModel.addElement("Вы: " + username); // Добавляем себя в список
+            userListModel.addElement("Вы: " + username);
             userIdMap.clear();
 
             if (listPacket == null || listPacket.items.isEmpty()) {
-                chatArea.append("❗️Нет доступных пользователей для диалога.\n");
-                System.out.println("❗️ [ChatWindow] Получен пустой список пользователей!");
+                addMessageBubble("❗️Нет доступных пользователей для диалога.", false);
                 return;
             }
 
             for (ListPacket.CorrespondentItem item : listPacket.items) {
-                if (!item.login.equals(username)) {  // Исключаем текущего пользователя
+                if (!item.login.equals(username)) {
                     userListModel.addElement(item.login);
                     userIdMap.put(item.login, item.id);
-                    System.out.println("➕ [ChatWindow] Добавлен пользователь в список: " + item.login);
                 }
             }
 
-            chatArea.append("✅ Список пользователей обновлён.\n");
+            addMessageBubble("✅ Список пользователей обновлён.", false);
         });
     }
 
     public void displayIncomingMessage(String message) {
-        SwingUtilities.invokeLater(() -> chatArea.append(message + "\n"));
+        SwingUtilities.invokeLater(() -> addMessageBubble(message, false));
     }
 
     public void displayOutgoingMessage(String message) {
-        SwingUtilities.invokeLater(() -> chatArea.append(message + "\n"));
+        SwingUtilities.invokeLater(() -> addMessageBubble(message, true));
+    }
+
+    private void addMessageBubble(String text, boolean outgoing) {
+        JPanel bubbleWrapper = new JPanel();
+        bubbleWrapper.setLayout(new BoxLayout(bubbleWrapper, BoxLayout.X_AXIS));
+        bubbleWrapper.setOpaque(false);
+        bubbleWrapper.setBorder(new EmptyBorder(5, 10, 5, 10));
+
+        ChatBubbleArea bubble = new ChatBubbleArea(text, outgoing);
+        bubble.setMaximumSize(new Dimension(400, Integer.MAX_VALUE));
+
+        if (outgoing) {
+            bubbleWrapper.add(Box.createHorizontalGlue());
+            bubbleWrapper.add(bubble);
+        } else {
+            bubbleWrapper.add(bubble);
+            bubbleWrapper.add(Box.createHorizontalGlue());
+        }
+
+        chatMessagesPanel.add(bubbleWrapper);
+        chatMessagesPanel.revalidate();
+        chatMessagesPanel.repaint();
+
+        JScrollBar vertical = ((JScrollPane) chatMessagesPanel.getParent().getParent()).getVerticalScrollBar();
+        vertical.setValue(vertical.getMaximum());
     }
 
     public static ChatWindow getInstance() {
         return instance;
     }
 }
+
+// 👇 Добавь после класса ChatWindow (в этом же файле):
+
+class ChatBubbleArea extends JTextArea {
+    private final boolean outgoing;
+
+    public ChatBubbleArea(String text, boolean outgoing) {
+        super(text);
+        this.outgoing = outgoing;
+        setLineWrap(true);
+        setWrapStyleWord(true);
+        setEditable(false);
+        setFont(new Font("Arial", Font.PLAIN, 14));
+        setBackground(outgoing ? new Color(0x25D366) : new Color(0x2A2A2A));
+        setForeground(outgoing ? Color.BLACK : Color.WHITE);
+        setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        setOpaque(false);
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(getBackground());
+
+        int arc = 20;
+        int w = getWidth();
+        int h = getHeight();
+        int tailSize = 10;
+
+        // Основной скруглённый прямоугольник
+        RoundRectangle2D.Float bubble = new RoundRectangle2D.Float(
+                outgoing ? 0 : tailSize,
+                0,
+                w - tailSize,
+                h,
+                arc, arc
+        );
+        g2.fill(bubble);
+
+        // Хвостик
+        Polygon tail = new Polygon();
+        if (outgoing) {
+            tail.addPoint(w - tailSize, h - 15);
+            tail.addPoint(w, h - 10);
+            tail.addPoint(w - tailSize, h);
+        } else {
+            tail.addPoint(0, 10);
+            tail.addPoint(tailSize, 5);
+            tail.addPoint(tailSize, 20);
+        }
+        g2.fillPolygon(tail);
+
+        g2.dispose();
+        super.paintComponent(g); // ✅ Важно: отрисовываем текст после фона
+    }
+}
+
+
+
+
