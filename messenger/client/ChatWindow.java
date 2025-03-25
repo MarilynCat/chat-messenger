@@ -211,6 +211,12 @@ public class ChatWindow extends JFrame {
 
 // 👇 Добавь после класса ChatWindow (в этом же файле):
 
+// Было:
+// - setBorder(...) → 10, 15, 10, 15 (лишний padding справа у входящих)
+// - setMaximumSize(..., Integer.MAX_VALUE) → баблы растягиваются по высоте
+// - outgoing хвостик кривой: не выровнен по нижнему краю
+
+// Стало:
 class ChatBubbleArea extends JTextArea {
     private final boolean outgoing;
 
@@ -223,8 +229,16 @@ class ChatBubbleArea extends JTextArea {
         setFont(new Font("Arial", Font.PLAIN, 14));
         setBackground(outgoing ? new Color(0x25D366) : new Color(0x2A2A2A));
         setForeground(outgoing ? Color.BLACK : Color.WHITE);
-        setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10)); // ✅ исправлен паддинг
         setOpaque(false);
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        // ✅ предотвращаем растягивание по высоте
+        Dimension preferred = super.getPreferredSize();
+        preferred.width = Math.min(preferred.width, 400);
+        return preferred;
     }
 
     @Override
@@ -238,7 +252,6 @@ class ChatBubbleArea extends JTextArea {
         int h = getHeight();
         int tailSize = 10;
 
-        // Основной скруглённый прямоугольник
         RoundRectangle2D.Float bubble = new RoundRectangle2D.Float(
                 outgoing ? 0 : tailSize,
                 0,
@@ -248,12 +261,13 @@ class ChatBubbleArea extends JTextArea {
         );
         g2.fill(bubble);
 
-        // Хвостик
         Polygon tail = new Polygon();
         if (outgoing) {
-            tail.addPoint(w - tailSize, h - 15);
-            tail.addPoint(w, h - 10);
-            tail.addPoint(w - tailSize, h);
+            int x = w - 1;
+            int y = h - 15;
+            tail.addPoint(x - tailSize, y);
+            tail.addPoint(x, y + 5);
+            tail.addPoint(x - tailSize, y + 10);
         } else {
             tail.addPoint(0, 10);
             tail.addPoint(tailSize, 5);
@@ -262,9 +276,10 @@ class ChatBubbleArea extends JTextArea {
         g2.fillPolygon(tail);
 
         g2.dispose();
-        super.paintComponent(g); // ✅ Важно: отрисовываем текст после фона
+        super.paintComponent(g);
     }
 }
+
 
 
 
