@@ -3,28 +3,22 @@ package server.packets;
 import server.Packet;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
-import java.io.IOException;
 
 public class RequestUserListPacket extends Packet {
+    public static final String TYPE = "REQUEST_USER_LIST"; // Исправлена константа TYPE
 
     @Override
     public String getType() {
-        return "REQUEST_USER_LIST";
+        return TYPE;
     }
 
     @Override
-    public void writePacket(PrintWriter writer) {
-        super.writePacket(writer);  // Убедимся, что базовая логика вызвана
-        writer.println(getType());
+    public void writeBody(PrintWriter writer) throws Exception {
+        // Нет данных для отправки
     }
 
     @Override
-    public void readBody(BufferedReader reader) throws IOException {
-        // Пакет не требует данных в теле
-    }
-
-    @Override
-    public void writeBody(PrintWriter writer) {
-        // Пакет не требует данных в теле
+    public void readBody(BufferedReader reader) throws Exception {
+        // Нет данных для чтения
     }
 }

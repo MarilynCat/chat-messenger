@@ -35,12 +35,16 @@ public class MessengerServer {
 			}
 		}
 
+		// Регистрация пользователей
 		Correspondent.registerCorrespondent(new Correspondent(1, "User1", "password1"));
 		Correspondent.registerCorrespondent(new Correspondent(2, "User2", "password2"));
 		Correspondent.registerCorrespondent(new Correspondent(3, "User3", "password3"));
 
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
-			new Thread(new Dispatcher()).start();
+			Thread dispatcherThread = new Thread(new Dispatcher());
+			if (!dispatcherThread.isAlive()) {
+				dispatcherThread.start();
+			}
 
 			System.out.println("✅ Сервер запущен на порту " + port + ". Ожидание входящих подключений...");
 
@@ -49,8 +53,20 @@ public class MessengerServer {
 				Session newSession = new Session(socket);
 
 				System.out.println("✅ Установлено новое подключение");
-				sessions.add(newSession); // Добавляем сессию в список активных сессий
-				newSession.start();  // onClientConnected теперь вызывается внутри Session при успешной авторизации
+
+				newSession.start(); // Поток стартует только один раз
+
+				// ✅ Ожидание успешной авторизации без жесткой задержки
+				int attempts = 0;
+				while (!newSession.isAuthorized() && attempts < 15) {
+					Thread.sleep(200);
+					attempts++;
+				}
+
+				synchronized (sessions) {
+					sessions.removeIf(session -> !session.isAlive() || session.getCorrespondent() == null);
+				}
+
 			}
 
 		} catch (BindException e) {
@@ -61,32 +77,27 @@ public class MessengerServer {
 		}
 	}
 
+	// Отправка списка пользователей клиентам
+	// Исправлено: Удален ошибочный вызов sendUserList внутри самого метода
 	public void sendUserList() {
 		ListPacket listPacket = new ListPacket();
-		System.out.println("📋 [MessengerServer] Формируем список пользователей...");
 
-		for (Correspondent c : Correspondent.getAllCorrespondents()) {
-			listPacket.addItem(c.getId(), c.getLogin());
-			System.out.println("➕ Добавлен пользователь в список: " + c.getLogin());
+		for (Correspondent correspondent : Correspondent.getAllCorrespondents()) {
+			if (correspondent != null) {
+				listPacket.addItem(correspondent.getId(), correspondent.getLogin());
+			}
 		}
 
-		if (listPacket.items.isEmpty()) {
-			System.out.println("❗️ [MessengerServer] Список пользователей пуст!");
-			return;
-		}
-
-		for (Session session : getActiveSessions()) {
-			if (!session.getSocket().isClosed()) {
+		for (Session session : sessions) {
+			if (session.isAuthorized()) {
 				session.sendPacket(listPacket);
-				System.out.println("📤 [MessengerServer] Пакет с пользователями отправлен клиенту ID: " + session.getCorrespondentId());
-			} else {
-				System.out.println("❗️ [MessengerServer] Сокет закрыт. Пакет не отправлен клиенту ID: " + session.getCorrespondentId());
+				System.out.println("✅ [MessengerServer] Список пользователей отправлен сессии: " + session.getCorrespondent().getLogin());
 			}
 		}
 	}
 
 
-
+	// Удаление сессии из списка активных при отключении клиента
 	public static void removeSession(Session session) {
 		System.out.println("🔄 [MessengerServer] Удаление сессии клиента ID: " + session.getCorrespondentId());
 		sessions.remove(session);
@@ -95,11 +106,13 @@ public class MessengerServer {
 		System.out.println("🛑 [MessengerServer] Клиент отключился. ID: " + session.getCorrespondentId());
 	}
 
+	// Очистка неактивных сессий
 	private static void cleanInactiveSessions() {
 		System.out.println("🧹 [MessengerServer] Очистка неактивных сессий...");
 		sessions.removeIf(session -> !session.isAlive());
 	}
 
+	// Получение активных сессий
 	public static List<Session> getActiveSessions() {
 		System.out.println("🔎 [MessengerServer] Запрошен список активных сессий. Количество активных сессий: " + sessions.size());
 		return Collections.unmodifiableList(sessions);

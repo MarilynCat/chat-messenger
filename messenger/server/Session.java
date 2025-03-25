@@ -27,6 +27,14 @@ public class Session extends Thread {
         return socket;
     }
 
+    public boolean isAuthorized() {
+        return correspondent != null;
+    }
+
+    public Correspondent getCorrespondent() {
+        return correspondent;
+    }
+
     public void sendPacket(Packet p) {
         if (p != null && writer != null && socket.isConnected() && !socket.isClosed()) {
             toClientQueue.add(p);
@@ -57,13 +65,24 @@ public class Session extends Thread {
 
     public void processPacket(Packet packet) {
         if (packet instanceof RequestUserListPacket) {
+            if (!isAuthorized()) {
+                System.out.println("❗️ [Session] Попытка запроса списка пользователей от неавторизованного клиента.");
+                sendPacket(new ErrorPacket("Вы не авторизованы."));
+                return;
+            }
             System.out.println("📥 [Session] Получен запрос на список пользователей.");
             MessengerServer.getInstance().sendUserList();
         }
 
-        if (packet instanceof HiPacket) {
-            HiPacket hiPacket = (HiPacket) packet;
+        if (packet instanceof HiPacket hiPacket) {
             System.out.println("📥 [Session] Получен HiPacket с логином: " + hiPacket.login);
+
+            if (!hiPacket.getType().equals(HiPacket.TYPE)) {
+                System.out.println("❌ [Session] Некорректный тип пакета для HiPacket.");
+                sendPacket(new ErrorPacket("Ошибка авторизации: Некорректный тип пакета."));
+                close();
+                return;
+            }
 
             Correspondent correspondent = Correspondent.getCorrespondent(hiPacket.login);
 
@@ -71,16 +90,30 @@ public class Session extends Thread {
                 this.correspondent = correspondent;
                 correspondent.activeSession = this;
 
-                if (MessengerServer.getInstance() != null) {
-                    System.out.println("📢 [Session] Вызываем sendUserList() после успешной авторизации.");
-                    MessengerServer.getInstance().sendUserList();
-                }
-
                 System.out.println("✅ Успешная авторизация: " + hiPacket.login);
+                sendPacket(new WelcomePacket());
+                MessengerServer.getInstance().sendUserList();
             } else {
                 System.out.println("❌ Ошибка авторизации: неверные данные для логина " + hiPacket.login);
                 sendPacket(new ErrorPacket("Ошибка авторизации"));
                 close();
+            }
+        }
+
+
+        if (packet instanceof MessagePacket msg) {
+            System.out.println("📩 [Session] Получено сообщение от ID " + msg.senderId + ": " + msg.text);
+
+            Correspondent receiver = Correspondent.getCorrespondent(msg.correspondentId);
+            if (receiver != null && receiver.activeSession != null) {
+                receiver.activeSession.sendPacket(msg);
+                System.out.println("✅ [Session] Сообщение доставлено пользователю ID: " + msg.correspondentId);
+            } else if (receiver != null) {
+                receiver.storeOfflineMessage(msg);
+                System.out.println("⚠️ [Session] Получатель оффлайн, сообщение сохранено.");
+            } else {
+                System.out.println("❗️ [Session] Ошибка: Получатель не найден.");
+                sendPacket(new ErrorPacket("Получатель не найден."));
             }
         }
     }
@@ -92,6 +125,7 @@ public class Session extends Thread {
 
             socket.setSoTimeout(20000);
 
+            // Поток отправки данных клиенту
             writerThread = new Thread(() -> {
                 while (!Thread.currentThread().isInterrupted() && !socket.isClosed()) {
                     try {
@@ -126,26 +160,41 @@ public class Session extends Thread {
 
             writerThread.start();
 
+            // Чтение данных от клиента
             while (!socket.isClosed()) {
-                if (!reader.ready()) {
-                    Thread.sleep(200);
-                    continue;
+                try {
+                    if (reader.ready()) {
+                        String rawData = reader.readLine();
+                        if (rawData == null || rawData.isEmpty()) {
+                            continue;
+                        }
+
+                        System.out.println("📥 [Session] Получены сырые данные: " + rawData);
+
+                        Packet p = Packet.readPacket(reader);
+                        if (p == null) {
+                            System.out.println("❗️ [Session] Ошибка чтения пакета: Пакет не распознан.");
+                            sendPacket(new ErrorPacket("Ошибка авторизации: Пакет не распознан."));
+                            close();
+                            return;
+                        }
+                        processPacket(p);
+
+                        if (p != null) {
+                            processPacket(p);
+                        }
+                    } else {
+                        System.out.println("⏳ [Session] Ожидание данных...");
+                        Thread.sleep(200);
+                    }
+                } catch (IOException e) {
+                    System.out.println("❗️ [Session] Ошибка чтения данных: " + e.getMessage());
                 }
-
-                String rawData = reader.readLine();
-                System.out.println("📥 [Session] Получены сырые данные: " + rawData);
-
-                if (rawData == null || rawData.isEmpty()) {
-                    Thread.sleep(200);
-                    continue;
-                }
-
-                Packet p = Packet.readPacket(reader);
-                processPacket(p);
             }
         } catch (Exception ex) {
             System.out.println("❌ [Session] Неизвестная ошибка: " + ex.getMessage());
             ex.printStackTrace();
+        } finally {
             close();
         }
     }

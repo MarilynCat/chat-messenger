@@ -4,7 +4,7 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 
 public class ErrorPacket extends Packet {
-    public static final String type = "ERROR";
+    public static final String TYPE = "ERROR"; // Исправлена константа TYPE
 
     private String message;
 
@@ -18,7 +18,7 @@ public class ErrorPacket extends Packet {
 
     @Override
     public String getType() {
-        return type;
+        return TYPE;
     }
 
     @Override

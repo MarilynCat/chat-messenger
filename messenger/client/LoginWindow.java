@@ -62,19 +62,13 @@ public class LoginWindow extends JFrame {
         }
 
         try {
-            ClientConnection connection = new ClientConnection("localhost", 20000, packet -> {
+            ClientConnection connection = new ClientConnection("localhost", 20000, username, password, packet -> {
                 if (ChatWindow.getInstance() != null) {
                     ChatWindow.getInstance().displayIncomingPacket(packet);
                 }
             });
 
             connection.start();
-
-            HiPacket hiPacket = new HiPacket();
-            hiPacket.login = username;
-            hiPacket.password = password;
-
-            connection.sendPacket(hiPacket);
 
             ChatWindow chatWindow = new ChatWindow(connection, username);
             chatWindow.setVisible(true);
@@ -83,6 +77,6 @@ public class LoginWindow extends JFrame {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Ошибка подключения: " + ex.getMessage());
         }
-
     }
+
 }

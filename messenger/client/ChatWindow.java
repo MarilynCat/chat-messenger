@@ -37,11 +37,7 @@ public class ChatWindow extends JFrame {
         // Добавление текущего пользователя
         userListModel.addElement("Вы: " + username);
 
-        // Добавление тестовых пользователей
-        userListModel.addElement("User1");
-        userListModel.addElement("User2");
-        userListModel.addElement("User3");
-
+        // Автоматический запрос списка пользователей после запуска
         connection.sendPacket(new RequestUserListPacket());
 
         userList.addMouseListener(new MouseAdapter() {
@@ -51,6 +47,10 @@ public class ChatWindow extends JFrame {
                 if (selected != null && !selected.startsWith("Вы: ")) {
                     selectedUser = selected;
                     chatArea.append("💬 Начат диалог с " + selectedUser + "\n");
+
+                    if (!userIdMap.containsKey(selectedUser)) {
+                        chatArea.append("❌ Ошибка: Собеседник не найден в системе.\n");
+                    }
                 }
             }
         });
@@ -144,11 +144,7 @@ public class ChatWindow extends JFrame {
             return;
         }
 
-        MessagePacket msgPacket = new MessagePacket();
-        msgPacket.senderId = connection.getCurrentUserId();
-        msgPacket.correspondentId = correspondentId;
-        msgPacket.text = text;
-
+        MessagePacket msgPacket = new MessagePacket(connection.getCurrentUserId(), correspondentId, text);
         connection.sendPacket(msgPacket);
 
         displayOutgoingMessage("Me to " + selectedUser + ": " + text);
@@ -166,12 +162,18 @@ public class ChatWindow extends JFrame {
             MessagePacket msg = (MessagePacket) packet;
             displayIncomingMessage("📩 Сообщение от пользователя ID " + msg.senderId + ": " + msg.text);
         }
+
+        if (packet instanceof WelcomePacket) {
+            chatArea.append("✅ Авторизация успешна. Список пользователей обновляется...\n");
+            connection.sendPacket(new RequestUserListPacket());  // ✅ Повторный запрос списка пользователей
+        }
+
     }
 
     private void updateUserList(ListPacket listPacket) {
         SwingUtilities.invokeLater(() -> {
             userListModel.clear();
-            userListModel.addElement("Вы: " + username);
+            userListModel.addElement("Вы: " + username); // Добавляем себя в список
             userIdMap.clear();
 
             if (listPacket == null || listPacket.items.isEmpty()) {

@@ -1,7 +1,7 @@
 package client;
 
 import server.*;
-import server.packets.RequestUserListPacket; // ✅ Добавлен импорт для RequestUserListPacket
+import server.packets.RequestUserListPacket;
 
 import java.io.*;
 import java.net.*;
@@ -14,6 +14,9 @@ public class ClientConnection extends Thread {
     private final LinkedBlockingQueue<Packet> toServerQueue = new LinkedBlockingQueue<>();
     private Thread writerThread;
     private MessageListener messageListener;
+
+    private final String username; // ✅ Добавлены поля username и password
+    private final String password;
 
     private Correspondent correspondent;
 
@@ -34,7 +37,9 @@ public class ClientConnection extends Thread {
         void onPacketReceived(Packet packet);
     }
 
-    public ClientConnection(String host, int port, MessageListener listener) throws IOException {
+    public ClientConnection(String host, int port, String username, String password, MessageListener listener) throws IOException {
+        this.username = username;  // ✅ Инициализация логина и пароля
+        this.password = password;
         this.socket = new Socket(host, port);
         this.messageListener = listener;
 
@@ -71,6 +76,21 @@ public class ClientConnection extends Thread {
         });
 
         writerThread.start();
+
+        // ✅ Исправлено: Автоматически отправляем HiPacket с явной передачей данных
+        sendHiPacket(this.username, this.password); // ✅ Исправлено
+    }
+
+    // ✅ Исправленный метод отправки HiPacket
+    public void sendHiPacket(String login, String password) {
+        try {
+            HiPacket hiPacket = new HiPacket(login, password);
+            sendPacket(hiPacket); // Отправляем через стандартный метод
+            System.out.println("✅ [ClientConnection] Пакет успешно отправлен: HI");
+        } catch (Exception e) {
+            System.out.println("❌ [ClientConnection] Ошибка при отправке HiPacket: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public void sendPacket(Packet packet) {
@@ -116,7 +136,7 @@ public class ClientConnection extends Thread {
 
                 if (packet instanceof WelcomePacket) {
                     System.out.println("✅ [ClientConnection] Успешная авторизация. Показ списка пользователей.");
-                    requestUserList();
+                    requestUserList();  // ✅ Удалён лишний поток, запрос сразу после успешной авторизации
                 }
 
                 if (packet instanceof ListPacket listPacket) {

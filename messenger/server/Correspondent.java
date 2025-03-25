@@ -1,19 +1,14 @@
 package server;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
 
 public class Correspondent {
     private final int id;
     private final String login;
-    private final String password; // Поле для пароля
+    private final String password;
 
     public Session activeSession;
-    private final List<MessagePacket> offlineMessages = new ArrayList<>();  // Список для хранения оффлайн сообщений
+    private final List<MessagePacket> offlineMessages = new ArrayList<>();
 
     // Конструктор с паролем
     public Correspondent(int id, String login, String password) {
@@ -22,7 +17,7 @@ public class Correspondent {
         this.password = password;
     }
 
-    // Геттеры для получения ID и логина
+    // Геттеры
     public int getId() {
         return id;
     }
@@ -37,6 +32,14 @@ public class Correspondent {
     private static final Map<Integer, Correspondent> correspondentById = new HashMap<>();
     private static final Map<String, Correspondent> correspondentByLogin = new HashMap<>();
 
+    // Регистрация пользователей (встроенные учетные записи)
+    static {
+        registerCorrespondent(new Correspondent(1, "User1", "password1"));
+        registerCorrespondent(new Correspondent(2, "User2", "password2"));
+        registerCorrespondent(new Correspondent(3, "User3", "password3"));
+        System.out.println("✅ [Correspondent] Базовые пользователи зарегистрированы.");
+    }
+
     // Регистрация нового пользователя
     public static void registerCorrespondent(Correspondent c) {
         correspondentById.put(c.id, c);
@@ -50,7 +53,11 @@ public class Correspondent {
 
     // Поиск по логину
     public static Correspondent getCorrespondent(String login) {
-        return correspondentByLogin.get(login);
+        if (correspondentByLogin.containsKey(login)) {
+            return correspondentByLogin.get(login);
+        }
+        System.out.println("❗️ [Correspondent] Пользователь " + login + " не найден.");
+        return null;
     }
 
     // Список всех пользователей
@@ -71,20 +78,29 @@ public class Correspondent {
     }
 
     // ==============================
-    // Метод для сохранения оффлайн сообщений
+    // 🔄 Оффлайн-сообщения
     // ==============================
     public void storeOfflineMessage(MessagePacket msg) {
         offlineMessages.add(msg);
         System.out.println("⚠️ [Correspondent] Сообщение сохранено для оффлайн пользователя: " + login);
     }
 
-    // Получение всех оффлайн сообщений
     public List<MessagePacket> getOfflineMessages() {
-        return offlineMessages;
+        return new ArrayList<>(offlineMessages); // Возвращаем копию для безопасности
     }
 
-    // Очистка оффлайн сообщений после их доставки
     public void clearOfflineMessages() {
         offlineMessages.clear();
+    }
+
+    // Автоматическая отправка оффлайн-сообщений при подключении
+    public void deliverOfflineMessages() {
+        if (!offlineMessages.isEmpty() && activeSession != null) {
+            for (MessagePacket msg : offlineMessages) {
+                activeSession.sendPacket(msg);
+                System.out.println("📤 [Correspondent] Доставлено оффлайн сообщение: " + msg.text);
+            }
+            clearOfflineMessages();
+        }
     }
 }

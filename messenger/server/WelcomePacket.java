@@ -4,11 +4,11 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 
 public class WelcomePacket extends Packet {
-    public static final String type = "WELCOME";
+    public static final String TYPE = "WELCOME"; // Исправлена константа TYPE
 
     @Override
     public String getType() {
-        return type;
+        return TYPE;
     }
 
     @Override
