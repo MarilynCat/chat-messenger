@@ -162,11 +162,11 @@ public class ChatWindow extends JFrame {
             MessagePacket msg = (MessagePacket) packet;
             displayIncomingMessage("📩 Сообщение от пользователя ID " + msg.senderId + ": " + msg.text);
         }
-
-        if (packet instanceof WelcomePacket) {
-            chatArea.append("✅ Авторизация успешна. Список пользователей обновляется...\n");
-            connection.sendPacket(new RequestUserListPacket());  // ✅ Повторный запрос списка пользователей
-        }
+//
+//        if (packet instanceof WelcomePacket) {
+//            chatArea.append("✅ Авторизация успешна. Список пользователей обновляется...\n");
+//            connection.sendPacket(new RequestUserListPacket());  // ✅ Повторный запрос списка пользователей
+//        }
 
     }
 

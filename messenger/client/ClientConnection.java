@@ -109,61 +109,45 @@ public class ClientConnection extends Thread {
     @Override
     public void run() {
         try {
-            int retryCount = 0;
-            final int MAX_RETRIES = 50;
             final int RETRY_DELAY_MS = 100;
-
-            while (!socket.isClosed() && retryCount < MAX_RETRIES) {
+            while (!socket.isClosed()) {
                 System.out.println("🔎 [ClientConnection] Ожидание пакета от сервера...");
 
                 if (!reader.ready()) {
-                    retryCount++;
-                    System.out.println("⏳ [ClientConnection] Поток данных не готов к чтению. Попытка " + retryCount);
+                    System.out.println("⏳ [ClientConnection] Данных пока нет, ожидание...");
                     Thread.sleep(RETRY_DELAY_MS);
                     continue;
                 }
 
                 Packet packet = Packet.readPacket(reader);
-
                 if (packet == null) {
-                    System.out.println("❗️ [ClientConnection] Пакет пустой или некорректный, попытка " + retryCount);
-                    retryCount++;
+//                    System.out.println("❗️ [ClientConnection] Получен пустой или некорректный пакет, ожидание...");
                     Thread.sleep(RETRY_DELAY_MS);
                     continue;
                 }
 
-                retryCount = 0;
-
-                if (packet instanceof WelcomePacket) {
+                if (packet instanceof WelcomePacket wp) {
                     System.out.println("✅ [ClientConnection] Успешная авторизация. Показ списка пользователей.");
-                    requestUserList();  // ✅ Удалён лишний поток, запрос сразу после успешной авторизации
-                }
-
-                if (packet instanceof ListPacket listPacket) {
+                    // Устанавливаем текущего пользователя, используя userId из пакета
+                    this.correspondent = new Correspondent(wp.userId, this.username, this.password);
+                    requestUserList();  // Запрос списка пользователей после установки correspondent
+                } else if (packet instanceof ListPacket listPacket) {
                     System.out.println("✅ [ClientConnection] Получен ListPacket с количеством пользователей: " + listPacket.items.size());
                     if (messageListener != null) {
                         messageListener.onPacketReceived(listPacket);
                     } else {
                         System.out.println("❗️ [ClientConnection] MessageListener не установлен! Список пользователей может не отобразиться.");
                     }
-                }
-
-                if (packet instanceof ErrorPacket) {
+                } else if (packet instanceof ErrorPacket) {
                     System.out.println("❌ [ClientConnection] Ошибка авторизации: " + ((ErrorPacket) packet).getMessage());
                     close();
                     break;
-                }
-
-                if (messageListener != null) {
-                    messageListener.onPacketReceived(packet);
+                } else {
+                    if (messageListener != null) {
+                        messageListener.onPacketReceived(packet);
+                    }
                 }
             }
-
-            if (retryCount >= MAX_RETRIES) {
-                System.out.println("🛑 [ClientConnection] Превышено количество попыток. Закрываем соединение.");
-                close();
-            }
-
         } catch (Exception e) {
             System.out.println("❌ [ClientConnection] Ошибка при чтении пакета: " + e.getMessage());
             e.printStackTrace();
@@ -171,6 +155,7 @@ public class ClientConnection extends Thread {
             close();
         }
     }
+
 
     private void requestUserList() {
         System.out.println("📋 [ClientConnection] Запрос списка пользователей...");

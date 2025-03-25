@@ -91,13 +91,17 @@ public class Session extends Thread {
                 correspondent.activeSession = this;
 
                 System.out.println("✅ Успешная авторизация: " + hiPacket.login);
-                sendPacket(new WelcomePacket());
+                // Создаем WelcomePacket с ID авторизованного пользователя
+                WelcomePacket welcomePacket = new WelcomePacket();
+                welcomePacket.userId = correspondent.getId();
+                sendPacket(welcomePacket);
                 MessengerServer.getInstance().sendUserList(this);
             } else {
                 System.out.println("❌ Ошибка авторизации: неверные данные для логина " + hiPacket.login);
                 sendPacket(new ErrorPacket("Ошибка авторизации"));
                 close();
             }
+
         }
 
 
