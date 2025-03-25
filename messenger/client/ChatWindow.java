@@ -23,6 +23,7 @@ public class ChatWindow extends JFrame {
     private String selectedUser;
     private final Map<String, Integer> userIdMap = new HashMap<>();
     private JPanel chatMessagesPanel;
+    private JLabel chatTitle;
 
     public ChatWindow(ClientConnection connection, String username) {
         this.connection = connection;
@@ -44,7 +45,9 @@ public class ChatWindow extends JFrame {
                 String selected = userList.getSelectedValue();
                 if (selected != null && !selected.startsWith("Вы: ")) {
                     selectedUser = selected;
+                    chatTitle.setText(selectedUser); // ✅ заголовок обновляется
                     addMessageBubble("💬 Начат диалог с " + selectedUser, false);
+
 
                     if (!userIdMap.containsKey(selectedUser)) {
                         addMessageBubble("❌ Ошибка: Собеседник не найден в системе.", false);
@@ -79,7 +82,7 @@ public class ChatWindow extends JFrame {
         JPanel chatPanel = new JPanel(new BorderLayout());
         chatPanel.setBackground(new Color(20, 20, 20));
 
-        JLabel chatTitle = new JLabel("Выберите собеседника", JLabel.CENTER);
+        chatTitle = new JLabel("Выберите собеседника", JLabel.CENTER);
         chatTitle.setForeground(Color.WHITE);
         chatTitle.setBackground(new Color(30, 30, 30));
         chatTitle.setOpaque(true);
@@ -133,7 +136,7 @@ public class ChatWindow extends JFrame {
         MessagePacket msgPacket = new MessagePacket(connection.getCurrentUserId(), correspondentId, text);
         connection.sendPacket(msgPacket);
 
-        displayOutgoingMessage("Me to " + selectedUser + ": " + text);
+        displayOutgoingMessage(text);
         messageField.setText("");
     }
 
@@ -145,7 +148,7 @@ public class ChatWindow extends JFrame {
         }
 
         if (packet instanceof MessagePacket msg) {
-            displayIncomingMessage("📩 Сообщение от пользователя ID " + msg.senderId + ": " + msg.text);
+            displayIncomingMessage(msg.text);
         }
     }
 
@@ -229,7 +232,11 @@ class ChatBubbleArea extends JTextArea {
         setFont(new Font("Arial", Font.PLAIN, 14));
         setBackground(outgoing ? new Color(0x25D366) : new Color(0x2A2A2A));
         setForeground(outgoing ? Color.BLACK : Color.WHITE);
-        setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10)); // ✅ исправлен паддинг
+        if (outgoing) {
+            setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 20));
+        } else {
+            setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 15));
+        }
         setOpaque(false);
     }
 
