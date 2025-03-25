@@ -77,32 +77,31 @@ public class MessengerServer {
 		}
 	}
 
-	// Отправка списка пользователей клиентам
-	// Исправлено: Удален ошибочный вызов sendUserList внутри самого метода
-	public void sendUserList() {
+	public void sendUserList(Session session) {
+		if (session == null || !session.isAuthorized()) {
+			System.out.println("❗️ [MessengerServer] Попытка отправить список пользователю без авторизации.");
+			return;
+		}
+
 		ListPacket listPacket = new ListPacket();
 
 		for (Correspondent correspondent : Correspondent.getAllCorrespondents()) {
-			if (correspondent != null) {
+			if (correspondent != null && !correspondent.equals(session.getCorrespondent())) {
 				listPacket.addItem(correspondent.getId(), correspondent.getLogin());
 			}
 		}
 
-		for (Session session : sessions) {
-			if (session.isAuthorized()) {
-				session.sendPacket(listPacket);
-				System.out.println("✅ [MessengerServer] Список пользователей отправлен сессии: " + session.getCorrespondent().getLogin());
-			}
-		}
+		listPacket.currentUserId = session.getCorrespondentId();
+		session.sendPacket(listPacket);
+		System.out.println("✅ [MessengerServer] Список пользователей отправлен пользователю: " + session.getCorrespondent().getLogin());
 	}
-
 
 	// Удаление сессии из списка активных при отключении клиента
 	public static void removeSession(Session session) {
 		System.out.println("🔄 [MessengerServer] Удаление сессии клиента ID: " + session.getCorrespondentId());
 		sessions.remove(session);
 		cleanInactiveSessions();
-		MessengerServer.getInstance().sendUserList();
+		MessengerServer.getInstance().sendUserList(session);
 		System.out.println("🛑 [MessengerServer] Клиент отключился. ID: " + session.getCorrespondentId());
 	}
 

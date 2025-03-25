@@ -14,10 +14,18 @@ public class WelcomePacket extends Packet {
     @Override
     public void writeBody(PrintWriter writer) throws Exception {
         writer.println("Добро пожаловать в чат!");
+        writer.println(); // Завершающая пустая строка для корректного разделения пакетов
     }
 
     @Override
     public void readBody(BufferedReader reader) throws Exception {
-        // Нет дополнительных данных для чтения
+        StringBuilder body = new StringBuilder();
+        String line;
+        // Читаем все строки до пустой строки, которая означает конец пакета
+        while ((line = reader.readLine()) != null && !line.isEmpty()) {
+            body.append(line);
+        }
+        System.out.println("📩 [WelcomePacket] Получено сообщение: " + body.toString());
     }
+
 }

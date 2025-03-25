@@ -127,7 +127,7 @@ public class ChatWindow extends JFrame {
         String text = messageField.getText().trim();
         if (text.isEmpty()) return;
 
-        if (selectedUser == null || selectedUser.equals("Вы: " + username)) {
+        if (selectedUser == null || selectedUser.equals("Вы: " + username) || !userIdMap.containsKey(selectedUser)) {
             chatArea.append("⚠️ Пожалуйста, выберите корректного собеседника из списка.\n");
             return;
         }

@@ -71,7 +71,7 @@ public class Session extends Thread {
                 return;
             }
             System.out.println("📥 [Session] Получен запрос на список пользователей.");
-            MessengerServer.getInstance().sendUserList();
+            MessengerServer.getInstance().sendUserList(this); // ✅ Передаём текущую сессию
         }
 
         if (packet instanceof HiPacket hiPacket) {
@@ -92,7 +92,7 @@ public class Session extends Thread {
 
                 System.out.println("✅ Успешная авторизация: " + hiPacket.login);
                 sendPacket(new WelcomePacket());
-                MessengerServer.getInstance().sendUserList();
+                MessengerServer.getInstance().sendUserList(this);
             } else {
                 System.out.println("❌ Ошибка авторизации: неверные данные для логина " + hiPacket.login);
                 sendPacket(new ErrorPacket("Ошибка авторизации"));
@@ -161,16 +161,10 @@ public class Session extends Thread {
             writerThread.start();
 
             // Чтение данных от клиента
+// Чтение данных от клиента
             while (!socket.isClosed()) {
                 try {
                     if (reader.ready()) {
-                        String rawData = reader.readLine();
-                        if (rawData == null || rawData.isEmpty()) {
-                            continue;
-                        }
-
-                        System.out.println("📥 [Session] Получены сырые данные: " + rawData);
-
                         Packet p = Packet.readPacket(reader);
                         if (p == null) {
                             System.out.println("❗️ [Session] Ошибка чтения пакета: Пакет не распознан.");
@@ -179,10 +173,6 @@ public class Session extends Thread {
                             return;
                         }
                         processPacket(p);
-
-                        if (p != null) {
-                            processPacket(p);
-                        }
                     } else {
                         System.out.println("⏳ [Session] Ожидание данных...");
                         Thread.sleep(200);

@@ -5,8 +5,9 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 
 public class ListPacket extends Packet {
-    public static final String TYPE = "LIST"; // Исправлена константа TYPE
+    public static final String TYPE = "LIST";
 
+    public int currentUserId = -1; // 🆕 Добавлено поле
     public ArrayList<CorrespondentItem> items = new ArrayList<>();
 
     public static class CorrespondentItem {
@@ -30,16 +31,24 @@ public class ListPacket extends Packet {
 
     @Override
     public void writeBody(PrintWriter writer) throws Exception {
+        writer.println(currentUserId); // 🆕 сначала передаём ID текущего пользователя
+
         for (CorrespondentItem item : items) {
             writer.println(item.id);
             writer.println(item.login);
         }
-        writer.println();
+
+        writer.println(); // окончание пакета
     }
 
     @Override
     public void readBody(BufferedReader reader) throws Exception {
         items.clear();
+
+        String userIdLine = reader.readLine(); // 🆕 сначала читаем ID текущего пользователя
+        if (userIdLine == null) return;
+        currentUserId = Integer.parseInt(userIdLine);
+
         while (true) {
             String idLine = reader.readLine();
             if (idLine == null || idLine.isEmpty()) break;

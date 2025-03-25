@@ -16,27 +16,30 @@ public abstract class Packet {
 
     // ✅ Исправленный фабричный метод для чтения пакетов
     public static Packet readPacket(BufferedReader reader) throws IOException {
-        String packetType = reader.readLine();
+        String packetType;
+        // Пропускаем пустые строки (например, завершающую пустую строку предыдущего пакета)
+        do {
+            packetType = reader.readLine();
+        } while (packetType != null && packetType.isEmpty());
+
         if (packetType == null || packetType.isEmpty()) {
             System.out.println("❗️ [Packet] Пакет не распознан или пустой.");
             return null;
         }
 
         Packet packet;
-        if (packetType == null || packetType.isEmpty()) {
-            System.out.println("❗️ [Packet] Пакет не распознан или пустой.");
-            return null;
-        }
-
         switch (packetType) {
             case HiPacket.TYPE -> packet = new HiPacket();
-            // ...
+            case ListPacket.TYPE -> packet = new ListPacket();
+            case WelcomePacket.TYPE -> packet = new WelcomePacket();
+            case ErrorPacket.TYPE -> packet = new ErrorPacket();
+            case RequestUserListPacket.TYPE -> packet = new RequestUserListPacket();
+            case MessagePacket.TYPE -> packet = new MessagePacket();
             default -> {
                 System.out.println("❗️ [Packet] Неизвестный тип пакета: " + packetType);
                 return null;
             }
         }
-
 
         try {
             packet.readBody(reader);
@@ -48,6 +51,7 @@ public abstract class Packet {
 
         return packet;
     }
+
 
     // ✅ Исправленный метод для корректной записи пакетов в поток
     public void writePacket(PrintWriter writer) throws Exception {
