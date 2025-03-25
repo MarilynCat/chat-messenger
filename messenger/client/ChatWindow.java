@@ -2,8 +2,10 @@ package client;
 
 import client.ClientConnection;
 import server.*;
+import server.packets.RequestUserListPacket;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -32,7 +34,15 @@ public class ChatWindow extends JFrame {
         setLocationRelativeTo(null);
         initUI();
 
+        // Добавление текущего пользователя
         userListModel.addElement("Вы: " + username);
+
+        // Добавление тестовых пользователей
+        userListModel.addElement("User1");
+        userListModel.addElement("User2");
+        userListModel.addElement("User3");
+
+        connection.sendPacket(new RequestUserListPacket());
 
         userList.addMouseListener(new MouseAdapter() {
             @Override
@@ -47,37 +57,78 @@ public class ChatWindow extends JFrame {
     }
 
     private void initUI() {
-        chatArea = new JTextArea();
-        chatArea.setEditable(false);
-        JScrollPane chatScrollPane = new JScrollPane(chatArea);
+        setLayout(new BorderLayout());
+
+        // ---------------------- Список контактов (левая панель) ----------------------
+        JPanel contactsPanel = new JPanel();
+        contactsPanel.setLayout(new BoxLayout(contactsPanel, BoxLayout.Y_AXIS));
+        contactsPanel.setBackground(new Color(30, 30, 30));
+        contactsPanel.setPreferredSize(new Dimension(250, 600));
+
+        JLabel profileLabel = new JLabel("Вы: " + username);
+        profileLabel.setForeground(Color.WHITE);
+        profileLabel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        contactsPanel.add(profileLabel);
 
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
-        userList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        userList.setBackground(new Color(40, 40, 40));
+        userList.setForeground(Color.WHITE);
+        userList.setSelectionBackground(new Color(50, 200, 100));
+
         JScrollPane userScrollPane = new JScrollPane(userList);
-        userScrollPane.setPreferredSize(new Dimension(150, 0));
+        contactsPanel.add(userScrollPane);
+
+        // ---------------------- Панель сообщений (правая панель) ----------------------
+        JPanel chatPanel = new JPanel();
+        chatPanel.setLayout(new BorderLayout());
+        chatPanel.setBackground(new Color(20, 20, 20));
+
+        JLabel chatTitle = new JLabel("Выберите собеседника", JLabel.CENTER);
+        chatTitle.setForeground(Color.WHITE);
+        chatTitle.setBackground(new Color(30, 30, 30));
+        chatTitle.setOpaque(true);
+        chatTitle.setBorder(new EmptyBorder(10, 0, 10, 0));
+
+        chatArea = new JTextArea();
+        chatArea.setEditable(false);
+        chatArea.setBackground(new Color(25, 25, 25));
+        chatArea.setForeground(Color.WHITE);
+        chatArea.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        JScrollPane chatScrollPane = new JScrollPane(chatArea);
+
+        chatPanel.add(chatTitle, BorderLayout.NORTH);
+        chatPanel.add(chatScrollPane, BorderLayout.CENTER);
+
+        // ---------------------- Панель ввода сообщений ----------------------
+        JPanel inputPanel = new JPanel(new BorderLayout());
+        inputPanel.setBackground(new Color(30, 30, 30));
 
         messageField = new JTextField();
+        JButton sendButton = new JButton("➤");
+
+        inputPanel.add(messageField, BorderLayout.CENTER);
+        inputPanel.add(sendButton, BorderLayout.EAST);
+
+        chatPanel.add(inputPanel, BorderLayout.SOUTH);
+
+        // ---------------------- Добавление панелей в общий макет ----------------------
+        add(contactsPanel, BorderLayout.WEST);
+        add(chatPanel, BorderLayout.CENTER);
+
+        // Добавление событий
         messageField.addActionListener(e -> sendMessage());
-
-        JButton sendButton = new JButton("Send");
         sendButton.addActionListener(e -> sendMessage());
-
-        JPanel messagePanel = new JPanel(new BorderLayout());
-        messagePanel.add(messageField, BorderLayout.CENTER);
-        messagePanel.add(sendButton, BorderLayout.EAST);
-
-        add(userScrollPane, BorderLayout.WEST);
-        add(chatScrollPane, BorderLayout.CENTER);
-        add(messagePanel, BorderLayout.SOUTH);
     }
 
     private void sendMessage() {
         String text = messageField.getText().trim();
         if (text.isEmpty()) return;
 
-        if (selectedUser == null) {
-            chatArea.append("⚠️ Пожалуйста, выберите собеседника из списка.\n");
+        if (selectedUser == null || selectedUser.equals("Вы: " + username)) {
+            chatArea.append("⚠️ Пожалуйста, выберите корректного собеседника из списка.\n");
             return;
         }
 
@@ -107,9 +158,7 @@ public class ChatWindow extends JFrame {
     public void displayIncomingPacket(Packet packet) {
         System.out.println("📩 [ChatWindow] Пакет получен: " + packet.getType());
 
-        if (packet instanceof ListPacket) {
-            ListPacket listPacket = (ListPacket) packet;
-            System.out.println("✅ [ChatWindow] Получен ListPacket с количеством пользователей: " + listPacket.items.size());
+        if (packet instanceof ListPacket listPacket) {
             updateUserList(listPacket);
         }
 
@@ -132,9 +181,11 @@ public class ChatWindow extends JFrame {
             }
 
             for (ListPacket.CorrespondentItem item : listPacket.items) {
-                userListModel.addElement(item.login);
-                userIdMap.put(item.login, item.id);
-                System.out.println("➕ [ChatWindow] Добавлен пользователь в список: " + item.login);
+                if (!item.login.equals(username)) {  // Исключаем текущего пользователя
+                    userListModel.addElement(item.login);
+                    userIdMap.put(item.login, item.id);
+                    System.out.println("➕ [ChatWindow] Добавлен пользователь в список: " + item.login);
+                }
             }
 
             chatArea.append("✅ Список пользователей обновлён.\n");

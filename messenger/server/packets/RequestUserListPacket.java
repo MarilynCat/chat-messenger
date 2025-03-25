@@ -6,25 +6,25 @@ import java.io.PrintWriter;
 import java.io.IOException;
 
 public class RequestUserListPacket extends Packet {
-    public static final String type = "REQUEST_USER_LIST";
 
     @Override
     public String getType() {
-        return type;
+        return "REQUEST_USER_LIST";
     }
 
     @Override
     public void writePacket(PrintWriter writer) {
-        writer.println(type);
+        super.writePacket(writer);  // Убедимся, что базовая логика вызвана
+        writer.println(getType());
     }
 
     @Override
     public void readBody(BufferedReader reader) throws IOException {
-        // Пустая реализация, так как тело пакета не требуется
+        // Пакет не требует данных в теле
     }
 
     @Override
     public void writeBody(PrintWriter writer) {
-        // Пустая реализация, так как тело пакета не требуется
+        // Пакет не требует данных в теле
     }
 }

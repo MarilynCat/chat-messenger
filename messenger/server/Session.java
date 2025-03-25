@@ -1,5 +1,7 @@
 package server;
 
+import server.packets.RequestUserListPacket;
+
 import java.io.*;
 import java.net.*;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -53,12 +55,12 @@ public class Session extends Thread {
         }
     }
 
-    public void requestUserList() {
-        System.out.println("📋 [Session] Запрос списка пользователей...");
-        MessengerServer.getInstance().sendUserList();
-    }
-
     public void processPacket(Packet packet) {
+        if (packet instanceof RequestUserListPacket) {
+            System.out.println("📥 [Session] Получен запрос на список пользователей.");
+            MessengerServer.getInstance().sendUserList();
+        }
+
         if (packet instanceof HiPacket) {
             HiPacket hiPacket = (HiPacket) packet;
             System.out.println("📥 [Session] Получен HiPacket с логином: " + hiPacket.login);
@@ -139,17 +141,7 @@ public class Session extends Thread {
                 }
 
                 Packet p = Packet.readPacket(reader);
-                if (p instanceof MessagePacket msg) {
-                    Correspondent receiver = Correspondent.getCorrespondent(msg.correspondentId);
-                    if (receiver != null && receiver.activeSession != null) {
-                        receiver.activeSession.sendPacket(msg);
-                    } else if (receiver != null) {
-                        receiver.storeOfflineMessage(msg);
-                        System.out.println("⚠️ [Session] Получатель оффлайн, сообщение сохранено.");
-                    } else {
-                        System.out.println("❗️ [Session] Ошибка: Получатель не найден.");
-                    }
-                }
+                processPacket(p);
             }
         } catch (Exception ex) {
             System.out.println("❌ [Session] Неизвестная ошибка: " + ex.getMessage());

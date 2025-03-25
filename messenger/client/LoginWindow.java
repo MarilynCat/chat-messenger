@@ -67,14 +67,12 @@ public class LoginWindow extends JFrame {
                     ChatWindow.getInstance().displayIncomingPacket(packet);
                 }
             });
+
             connection.start();
 
-            // Добавлена передача и логирование данных в `HiPacket`
             HiPacket hiPacket = new HiPacket();
             hiPacket.login = username;
-            hiPacket.password = password;  // Исправление: Добавлена передача пароля
-
-            System.out.println("📤 [LoginWindow] HiPacket отправлен с логином: " + hiPacket.login + " и паролем: " + hiPacket.password);
+            hiPacket.password = password;
 
             connection.sendPacket(hiPacket);
 
@@ -85,5 +83,6 @@ public class LoginWindow extends JFrame {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Ошибка подключения: " + ex.getMessage());
         }
+
     }
 }
