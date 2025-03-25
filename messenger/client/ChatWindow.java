@@ -303,23 +303,42 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
         setBorder(new EmptyBorder(5, 10, 5, 10));
 
         avatarLabel.setPreferredSize(new Dimension(36, 36));
-        avatarLabel.setOpaque(true);
-        avatarLabel.setBackground(new Color(80, 80, 80));
+        avatarLabel.setMinimumSize(new Dimension(36, 36));
+        avatarLabel.setMaximumSize(new Dimension(36, 36));
+        avatarLabel.setOpaque(false);
+        avatarLabel.setBackground(new Color(100, 100, 100)); // цвет круга
         avatarLabel.setBorder(null);
         avatarLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        avatarLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        avatarLabel.setForeground(Color.WHITE);
+        avatarLabel.setVerticalAlignment(SwingConstants.CENTER);
         avatarLabel.setUI(new javax.swing.plaf.basic.BasicLabelUI() {
             @Override
             public void paint(Graphics g, JComponent c) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Определяем размеры компонента
+                int w = c.getWidth();
+                int h = c.getHeight();
+                // Берём минимальный размер, чтобы круг не становился эллипсом
+                int size = Math.min(w, h);
+
+                // Вычисляем координаты, чтобы круг был по центру
+                int x = (w - size) / 2;
+                int y = (h - size) / 2;
+
+                // Заливаем круг цветом фона
                 g2.setColor(avatarLabel.getBackground());
-                g2.fillOval(0, 0, avatarLabel.getWidth(), avatarLabel.getHeight());
+                g2.fillOval(x, y, size, size);
+
+                // Отрисовываем текст (букву) поверх круга
                 super.paint(g, c);
+
                 g2.dispose();
             }
+
         });
+
+
 
         JPanel textPanel = new JPanel();
         textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
@@ -351,10 +370,20 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
         // Настраиваем аватар: первая буква имени, фон и граница
         avatarLabel.setText(login.substring(0, 1).toUpperCase());
         avatarLabel.setBackground(new Color(100, 100, 100));
-        avatarLabel.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 60), 1, true));
+// Убираем обводку, чтобы сохранить круглый вид:
+        avatarLabel.setBorder(null);
+
 
         // Обновляем фон всего элемента в зависимости от выделения
-        setBackground(isSelected ? new Color(50, 200, 100) : new Color(40, 40, 40));
+        Color hoverColor = new Color(146,146,146,102); // #929292, alpha ~ 40%
+        Color normalColor = new Color(40,40,40);
+
+        if (isSelected) {
+            setBackground(hoverColor);
+        } else {
+            setBackground(normalColor);
+        }
+
 
         // Получаем превью последнего сообщения и обрезаем, если слишком длинное
         String preview = ChatWindow.getInstance().getLastMessagePreviewForUser(login);
@@ -364,11 +393,13 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
         previewLabel.setText(preview != null ? preview : " ");
 
         // Показываем разделитель, если элемент не последний
-        if (index < list.getModel().getSize() - 1) {
-            divider.setVisible(true);
-        } else {
-            divider.setVisible(false);
-        }
+        divider.setOrientation(SwingConstants.HORIZONTAL);
+        divider.setPreferredSize(new Dimension(1, 1));
+        divider.setBackground(new Color(60, 60, 60));
+        divider.setForeground(new Color(60, 60, 60));
+        divider.setVisible(true); // всегда виден
+        add(divider, BorderLayout.SOUTH);
+
 
         return this;
     }
