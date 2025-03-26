@@ -35,8 +35,9 @@ public class MessagePacket extends Packet {
 
         writer.println(senderId);
         writer.println(correspondentId);
-        writer.println(text);
-        writer.println();  // ✅ Добавлен перенос строки для корректной передачи
+        writer.println(text.length());
+        writer.print(text);  // 👈 важно: print, не println
+        writer.flush();
         System.out.println("✅ [MessagePacket] Пакет успешно записан: " + text);
     }
 
@@ -45,12 +46,17 @@ public class MessagePacket extends Packet {
         try {
             senderId = Integer.parseInt(reader.readLine());
             correspondentId = Integer.parseInt(reader.readLine());
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null && !line.isEmpty()) {
-                sb.append(line).append("\n");
+            int length = Integer.parseInt(reader.readLine());
+
+            char[] buffer = new char[length];
+            int read = 0;
+            while (read < length) {
+                int r = reader.read(buffer, read, length - read);
+                if (r == -1) break;
+                read += r;
             }
-            text = sb.toString().trim();
+            text = new String(buffer, 0, read);
+
 
             if (text.isEmpty()) {
                 System.out.println("❗️ [MessagePacket] Получено пустое сообщение.");

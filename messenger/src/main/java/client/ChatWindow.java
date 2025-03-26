@@ -365,8 +365,8 @@ public class ChatWindow extends JFrame {
 
 
     private void sendMessage() {
-        String text = messageField.getText().trim();
-        if (text.isEmpty()) return;
+        String text = messageField.getText();
+        if (text.trim().isEmpty()) return;
 
         if (selectedUser == null || selectedUser.equals("Вы: " + username) || !userIdMap.containsKey(selectedUser)) {
             addMessageBubble("⚠️ Пожалуйста, выберите корректного собеседника из списка.", false);
