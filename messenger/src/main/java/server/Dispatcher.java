@@ -64,6 +64,12 @@ public class Dispatcher implements Runnable {
 
                 System.out.println("📤 [Dispatcher] Отправляем WelcomePacket пользователю: " + hiP.login);
                 sendPacketWithFlush(session, new WelcomePacket());
+                for (MessagePacket msg : correspondent.getSessionMessages()) {
+                    if (msg.correspondentId == correspondent.getId() || msg.senderId == correspondent.getId()) {
+                        sendPacketWithFlush(session, msg);
+                    }
+                }
+                System.out.println("📤 [Dispatcher] История сообщений отправлена пользователю: " + correspondent.getLogin());
                 System.out.println("✅ [Dispatcher] WelcomePacket успешно отправлен.");
             }
 
@@ -86,12 +92,21 @@ public class Dispatcher implements Runnable {
 
                 var recipientSession = findSessionById(msgP.correspondentId);
                 if (recipientSession != null && recipientSession.isAlive()) {
-                    System.out.println("📨 [Dispatcher] Сообщение отправлено пользователю ID: " + msgP.correspondentId);
                     sendPacketWithFlush(recipientSession, msgP);
+                    // Добавляем в историю и для отправителя, и для получателя
+                    session.getCorrespondent().addToSessionHistory(msgP);
+                    recipientSession.getCorrespondent().addToSessionHistory(msgP);
                 } else {
-                    System.out.println("❌ [Dispatcher] Получатель ID " + msgP.correspondentId + " не найден или неактивен.");
-                    sendPacketWithFlush(session, new ErrorPacket("Recipient not found or inactive."));
+                    Correspondent recipient = Correspondent.getCorrespondent(msgP.correspondentId);
+                    if (recipient != null) {
+                        recipient.storeOfflineMessage(msgP);
+                        session.getCorrespondent().addToSessionHistory(msgP);
+                        recipient.addToSessionHistory(msgP);
+                    } else {
+                        sendPacketWithFlush(session, new ErrorPacket("Recipient not found or inactive."));
+                    }
                 }
+
             }
 
             default -> {

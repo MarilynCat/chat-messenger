@@ -71,7 +71,7 @@ public class Session extends Thread {
                 return;
             }
             System.out.println("📥 [Session] Получен запрос на список пользователей.");
-            MessengerServer.getInstance().sendUserList(this); // ✅ Передаём текущую сессию
+            MessengerServer.getInstance().sendUserList(this);
         }
 
         if (packet instanceof HiPacket hiPacket) {
@@ -91,7 +91,6 @@ public class Session extends Thread {
                 correspondent.activeSession = this;
 
                 System.out.println("✅ Успешная авторизация: " + hiPacket.login);
-                // Создаем WelcomePacket с ID авторизованного пользователя
                 WelcomePacket welcomePacket = new WelcomePacket();
                 welcomePacket.userId = correspondent.getId();
                 sendPacket(welcomePacket);
@@ -101,26 +100,14 @@ public class Session extends Thread {
                 sendPacket(new ErrorPacket("Ошибка авторизации"));
                 close();
             }
-
         }
 
-
-        if (packet instanceof MessagePacket msg) {
-            System.out.println("📩 [Session] Получено сообщение от ID " + msg.senderId + ": " + msg.text);
-
-            Correspondent receiver = Correspondent.getCorrespondent(msg.correspondentId);
-            if (receiver != null && receiver.activeSession != null) {
-                receiver.activeSession.sendPacket(msg);
-                System.out.println("✅ [Session] Сообщение доставлено пользователю ID: " + msg.correspondentId);
-            } else if (receiver != null) {
-                receiver.storeOfflineMessage(msg);
-                System.out.println("⚠️ [Session] Получатель оффлайн, сообщение сохранено.");
-            } else {
-                System.out.println("❗️ [Session] Ошибка: Получатель не найден.");
-                sendPacket(new ErrorPacket("Получатель не найден."));
-            }
+        if (packet instanceof MessagePacket) {
+            Dispatcher.event(new Event(this, packet));
+            return;
         }
     }
+
 
     public void run() {
         try {

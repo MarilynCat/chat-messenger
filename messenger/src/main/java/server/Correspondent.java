@@ -9,6 +9,8 @@ public class Correspondent {
 
     public Session activeSession;
     private final List<MessagePacket> offlineMessages = new ArrayList<>();
+    private final List<MessagePacket> sessionMessages = new ArrayList<>(); // 🆕 история сообщений текущей сессии
+
 
     // Конструктор с паролем
     public Correspondent(int id, String login, String password) {
@@ -103,4 +105,14 @@ public class Correspondent {
             clearOfflineMessages();
         }
     }
+
+    public void addToSessionHistory(MessagePacket msg) {
+        sessionMessages.add(msg);
+        System.out.println("🗂 [Correspondent] Сообщение добавлено в историю сессии пользователя: " + login);
+    }
+
+    public List<MessagePacket> getSessionMessages() {
+        return new ArrayList<>(sessionMessages); // безопасная копия
+    }
+
 }
