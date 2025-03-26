@@ -76,9 +76,6 @@ public class ChatWindow extends JFrame {
 
 // ➕ Добавляем поле поиска
         JTextField searchField = new JTextField();
-        searchField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        searchField.setMinimumSize(new Dimension(0, 35));
-        searchField.setPreferredSize(new Dimension(0, 35));
         searchField.setFont(new Font("Arial", Font.PLAIN, 13));
         searchField.setMargin(new Insets(5, 10, 5, 10));
         searchField.setBackground(new Color(50, 50, 50));
@@ -117,20 +114,26 @@ public class ChatWindow extends JFrame {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(60, 60, 60)); // тёмно-серый фон
+                g2.setColor(new Color(60, 60, 60));
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
                 g2.dispose();
                 super.paintComponent(g);
             }
         };
         searchWrapper.setOpaque(false);
-        searchWrapper.setBorder(new EmptyBorder(5, 10, 5, 10));
+        searchWrapper.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
         searchWrapper.add(searchField, BorderLayout.CENTER);
+
+
+// Новый фиксированный размер обёртки-контейнера
         JPanel searchWrapperContainer = new JPanel(new BorderLayout());
         searchWrapperContainer.setOpaque(false);
         searchWrapperContainer.setBorder(new EmptyBorder(10, 10, 10, 10));
+        searchWrapperContainer.setPreferredSize(new Dimension(Short.MAX_VALUE, 55)); // ✅ фиксируем высоту
+        searchWrapperContainer.setMaximumSize(new Dimension(Short.MAX_VALUE, 55));   // ✅ фиксируем высоту
         searchWrapperContainer.add(searchWrapper, BorderLayout.CENTER);
         contactsPanel.add(searchWrapperContainer);
+
 
 
 
