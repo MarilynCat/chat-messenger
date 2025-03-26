@@ -13,8 +13,6 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.swing.border.AbstractBorder;
 import java.net.URL;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 public class ChatWindow extends JFrame {
     private static ChatWindow instance;
@@ -161,8 +159,7 @@ public class ChatWindow extends JFrame {
         userList.setFocusable(false); // ⬅️ Отключаем фокусировку, чтобы не рисовался синий обвод
 
         JScrollPane userScrollPane = new JScrollPane(userList);
-        userScrollPane.setBorder(null);
-        userScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER); // 🔧 фиксируем
+        userScrollPane.setBorder(null); // ⬅️ Убираем бордер у скроллпейна
         contactsPanel.add(userScrollPane);
 
 
@@ -443,22 +440,18 @@ public class ChatWindow extends JFrame {
 
     public void displayOutgoingMessage(String message) {
         SwingUtilities.invokeLater(() -> {
-            addMessageBubble(message, true, LocalDateTime.now());
+            addMessageBubble(message, true);
             updateLastMessagePreview(selectedUser, message);
         });
     }
 
     private void addMessageBubble(String text, boolean outgoing) {
-        addMessageBubble(text, outgoing, LocalDateTime.now());
-    }
-
-    private void addMessageBubble(String text, boolean outgoing, LocalDateTime timestamp) {
         JPanel bubbleWrapper = new JPanel();
         bubbleWrapper.setLayout(new BoxLayout(bubbleWrapper, BoxLayout.X_AXIS));
         bubbleWrapper.setOpaque(false);
         bubbleWrapper.setBorder(new EmptyBorder(5, 10, 5, 10));
 
-        ChatBubbleArea bubble = new ChatBubbleArea(text, outgoing, timestamp);
+        ChatBubbleArea bubble = new ChatBubbleArea(text, outgoing);
         bubble.setMaximumSize(new Dimension(400, Integer.MAX_VALUE));
 
         if (outgoing) {
@@ -477,7 +470,6 @@ public class ChatWindow extends JFrame {
         vertical.setValue(vertical.getMaximum());
     }
 
-
     public void updateLastMessagePreview(String user, String message) {
         lastMessages.put(user, message);
         userList.repaint();
@@ -494,13 +486,10 @@ public class ChatWindow extends JFrame {
 
 class ChatBubbleArea extends JTextArea {
     private final boolean outgoing;
-    private final String time;
 
-
-    public ChatBubbleArea(String text, boolean outgoing, LocalDateTime timestamp) {
+    public ChatBubbleArea(String text, boolean outgoing) {
         super(text);
         this.outgoing = outgoing;
-        this.time = timestamp.format(DateTimeFormatter.ofPattern("HH:mm"));
         setLineWrap(true);
         setWrapStyleWord(true);
         setEditable(false);
@@ -508,13 +497,12 @@ class ChatBubbleArea extends JTextArea {
         setBackground(outgoing ? new Color(0x25D366) : new Color(0x2A2A2A));
         setForeground(outgoing ? Color.BLACK : Color.WHITE);
         if (outgoing) {
-            setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 40)); // место под время
+            setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 20));
         } else {
-            setBorder(BorderFactory.createEmptyBorder(10, 40, 10, 15)); // место под время
+            setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 15));
         }
         setOpaque(false);
     }
-
 
     @Override
     public Dimension getPreferredSize() {
@@ -534,6 +522,7 @@ class ChatBubbleArea extends JTextArea {
         int h = getHeight();
         int tailSize = 10;
 
+        // Исправлено: бабл расширен на 1px в сторону хвоста
         RoundRectangle2D.Float bubble = new RoundRectangle2D.Float(
                 outgoing ? 0 : tailSize - 1,
                 0,
@@ -558,19 +547,9 @@ class ChatBubbleArea extends JTextArea {
         }
         g2.fillPolygon(tail);
 
-        // ⏰ Рисуем время
-        g2.setFont(new Font("Arial", Font.PLAIN, 10));
-        g2.setColor(outgoing ? Color.DARK_GRAY : Color.LIGHT_GRAY);
-        FontMetrics fm = g2.getFontMetrics();
-        int timeWidth = fm.stringWidth(time);
-        int x = getWidth() - timeWidth - 10;
-        int y = getHeight() - 8;
-        g2.drawString(time, x, y);
-
         g2.dispose();
         super.paintComponent(g);
     }
-
 
 }
 
@@ -583,54 +562,63 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
     public ContactListRenderer() {
         setLayout(new BorderLayout(10, 0));
         setBackground(new Color(40, 40, 40));
-        setBorder(new EmptyBorder(5, 10, 0, 10)); // 👈 убираем нижний отступ (было: 5, 10, 5, 10)
+        setBorder(new EmptyBorder(5, 10, 5, 10));
 
         avatarLabel.setPreferredSize(new Dimension(36, 36));
+        avatarLabel.setMinimumSize(new Dimension(36, 36));
+        avatarLabel.setMaximumSize(new Dimension(36, 36));
+        avatarLabel.setOpaque(false);
+        avatarLabel.setBackground(new Color(100, 100, 100)); // цвет круга
+        avatarLabel.setBorder(null);
         avatarLabel.setHorizontalAlignment(SwingConstants.CENTER);
         avatarLabel.setVerticalAlignment(SwingConstants.CENTER);
-        avatarLabel.setOpaque(false);
         avatarLabel.setUI(new javax.swing.plaf.basic.BasicLabelUI() {
             @Override
             public void paint(Graphics g, JComponent c) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int w = c.getWidth(), h = c.getHeight();
-                int size = Math.min(w, h), x = (w - size) / 2, y = (h - size) / 2;
+
+                // Определяем размеры компонента
+                int w = c.getWidth();
+                int h = c.getHeight();
+                // Берём минимальный размер, чтобы круг не становился эллипсом
+                int size = Math.min(w, h);
+
+                // Вычисляем координаты, чтобы круг был по центру
+                int x = (w - size) / 2;
+                int y = (h - size) / 2;
+
+                // Заливаем круг цветом фона
                 g2.setColor(avatarLabel.getBackground());
                 g2.fillOval(x, y, size, size);
+
+                // Отрисовываем текст (букву) поверх круга
                 super.paint(g, c);
+
                 g2.dispose();
             }
+
         });
 
+
+
+        JPanel textPanel = new JPanel();
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.setOpaque(false);
         nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        nameLabel.setForeground(new Color(0x25D366));
+        nameLabel.setForeground(Color.WHITE);
         previewLabel.setFont(new Font("Arial", Font.PLAIN, 12));
         previewLabel.setForeground(Color.LIGHT_GRAY);
-
-        JPanel textPanel = new JPanel(new GridLayout(2, 1));
-        textPanel.setOpaque(false);
         textPanel.add(nameLabel);
         textPanel.add(previewLabel);
 
-        JPanel centerPanel = new JPanel();
-        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
-        centerPanel.setOpaque(false);
-        centerPanel.add(textPanel);
-
-        divider.setForeground(new Color(60, 60, 60));
-        divider.setPreferredSize(new Dimension(Short.MAX_VALUE, 1));
-        divider.setOpaque(true);
-
-        JPanel dividerWrapper = new JPanel(new BorderLayout());
-        dividerWrapper.setOpaque(false);
-        dividerWrapper.setBorder(new EmptyBorder(0, 46, 0, 0)); // 46px — отступ слева под аватар
-        dividerWrapper.setPreferredSize(new Dimension(Short.MAX_VALUE, 1));
-        dividerWrapper.add(divider, BorderLayout.CENTER);
-
         add(avatarLabel, BorderLayout.WEST);
-        add(centerPanel, BorderLayout.CENTER);
-        add(dividerWrapper, BorderLayout.SOUTH);
+        add(textPanel, BorderLayout.CENTER);
+
+        // Настраиваем divider, но не скрываем/показываем
+        divider.setPreferredSize(new Dimension(1, 1));
+        divider.setBackground(new Color(60, 60, 60));
+        add(divider, BorderLayout.SOUTH);
     }
 
 
@@ -666,9 +654,16 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
         }
         previewLabel.setText(preview != null ? preview : " ");
 
+        // Показываем разделитель, если элемент не последний
+        divider.setOrientation(SwingConstants.HORIZONTAL);
+        divider.setPreferredSize(new Dimension(1, 1));
+        divider.setBackground(new Color(60, 60, 60));
+        divider.setForeground(new Color(60, 60, 60));
+        divider.setVisible(true); // всегда виден
+        add(divider, BorderLayout.SOUTH);
+
 
         return this;
-
     }
 
 }
