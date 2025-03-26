@@ -606,7 +606,7 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
         textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
         textPanel.setOpaque(false);
         nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        nameLabel.setForeground(Color.WHITE);
+        nameLabel.setForeground(new Color(0x25D366));
         previewLabel.setFont(new Font("Arial", Font.PLAIN, 12));
         previewLabel.setForeground(Color.LIGHT_GRAY);
         textPanel.add(nameLabel);
