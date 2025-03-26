@@ -49,8 +49,8 @@ public class ChatWindow extends JFrame {
             @Override
             public void mouseClicked(MouseEvent e) {
                 String selected = userList.getSelectedValue();
-                if (selected != null && !selected.startsWith("Вы: ")) {
-                    selectedUser = selected;
+                if (selected != null) {
+                    selectedUser = selected.startsWith("Вы: ") ? selected.substring(4) : selected;
                     chatTitle.setText(selectedUser);
                     addMessageBubble("💬 Начат диалог с " + selectedUser, false);
 
@@ -60,6 +60,7 @@ public class ChatWindow extends JFrame {
                 }
             }
         });
+
     }
 
     private void initUI() {
@@ -94,15 +95,47 @@ public class ChatWindow extends JFrame {
         chatTitle.setBorder(new EmptyBorder(10, 0, 10, 0));
 
         chatMessagesPanel = new JPanel();
+        chatMessagesPanel.setOpaque(false); // важный момент!
         chatMessagesPanel.setLayout(new BoxLayout(chatMessagesPanel, BoxLayout.Y_AXIS));
-        chatMessagesPanel.setBackground(new Color(25, 25, 25));
+        chatMessagesPanel.setOpaque(false); // обязательно
+
+
         chatMessagesPanel.setBorder(new EmptyBorder(0, 0, 60, 0)); // отступ снизу, чтобы не заезжали под input
 
 
-        JScrollPane chatScrollPane = new JScrollPane(chatMessagesPanel);
+        // Загружаем фон
+        Image bgImage = new ImageIcon(getClass().getResource("/icons/chat_background.png")).getImage();
+
+// Создаём кастомный viewport
+        JViewport customViewport = new JViewport() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (bgImage != null) {
+                    int iw = bgImage.getWidth(null);
+                    int ih = bgImage.getHeight(null);
+                    if (iw > 0 && ih > 0) {
+                        for (int x = 0; x < getWidth(); x += iw) {
+                            for (int y = 0; y < getHeight(); y += ih) {
+                                g.drawImage(bgImage, x, y, this);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        customViewport.setOpaque(false);
+
+// ScrollPane с кастомным viewport
+        JScrollPane chatScrollPane = new JScrollPane();
+        chatScrollPane.setViewport(customViewport);               // <-- тут главное изменение
+        chatScrollPane.setViewportView(chatMessagesPanel);
+        chatScrollPane.setOpaque(false);
+        chatScrollPane.getViewport().setOpaque(false);
         chatScrollPane.setBorder(null);
         chatScrollPane.getVerticalScrollBar().setUnitIncrement(16);
         chatScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+
 
         chatPanel.add(chatTitle, BorderLayout.NORTH);
         chatPanel.add(chatScrollPane, BorderLayout.CENTER);
