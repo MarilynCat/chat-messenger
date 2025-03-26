@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.swing.border.AbstractBorder;
 import java.net.URL;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class ChatWindow extends JFrame {
     private static ChatWindow instance;
@@ -440,18 +442,22 @@ public class ChatWindow extends JFrame {
 
     public void displayOutgoingMessage(String message) {
         SwingUtilities.invokeLater(() -> {
-            addMessageBubble(message, true);
+            addMessageBubble(message, true, LocalDateTime.now());
             updateLastMessagePreview(selectedUser, message);
         });
     }
 
     private void addMessageBubble(String text, boolean outgoing) {
+        addMessageBubble(text, outgoing, LocalDateTime.now());
+    }
+
+    private void addMessageBubble(String text, boolean outgoing, LocalDateTime timestamp) {
         JPanel bubbleWrapper = new JPanel();
         bubbleWrapper.setLayout(new BoxLayout(bubbleWrapper, BoxLayout.X_AXIS));
         bubbleWrapper.setOpaque(false);
         bubbleWrapper.setBorder(new EmptyBorder(5, 10, 5, 10));
 
-        ChatBubbleArea bubble = new ChatBubbleArea(text, outgoing);
+        ChatBubbleArea bubble = new ChatBubbleArea(text, outgoing, timestamp);
         bubble.setMaximumSize(new Dimension(400, Integer.MAX_VALUE));
 
         if (outgoing) {
@@ -470,6 +476,7 @@ public class ChatWindow extends JFrame {
         vertical.setValue(vertical.getMaximum());
     }
 
+
     public void updateLastMessagePreview(String user, String message) {
         lastMessages.put(user, message);
         userList.repaint();
@@ -486,10 +493,13 @@ public class ChatWindow extends JFrame {
 
 class ChatBubbleArea extends JTextArea {
     private final boolean outgoing;
+    private final String time;
 
-    public ChatBubbleArea(String text, boolean outgoing) {
+
+    public ChatBubbleArea(String text, boolean outgoing, LocalDateTime timestamp) {
         super(text);
         this.outgoing = outgoing;
+        this.time = timestamp.format(DateTimeFormatter.ofPattern("HH:mm"));
         setLineWrap(true);
         setWrapStyleWord(true);
         setEditable(false);
@@ -497,12 +507,13 @@ class ChatBubbleArea extends JTextArea {
         setBackground(outgoing ? new Color(0x25D366) : new Color(0x2A2A2A));
         setForeground(outgoing ? Color.BLACK : Color.WHITE);
         if (outgoing) {
-            setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 20));
+            setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 40)); // место под время
         } else {
-            setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 15));
+            setBorder(BorderFactory.createEmptyBorder(10, 40, 10, 15)); // место под время
         }
         setOpaque(false);
     }
+
 
     @Override
     public Dimension getPreferredSize() {
@@ -522,7 +533,6 @@ class ChatBubbleArea extends JTextArea {
         int h = getHeight();
         int tailSize = 10;
 
-        // Исправлено: бабл расширен на 1px в сторону хвоста
         RoundRectangle2D.Float bubble = new RoundRectangle2D.Float(
                 outgoing ? 0 : tailSize - 1,
                 0,
@@ -547,9 +557,19 @@ class ChatBubbleArea extends JTextArea {
         }
         g2.fillPolygon(tail);
 
+        // ⏰ Рисуем время
+        g2.setFont(new Font("Arial", Font.PLAIN, 10));
+        g2.setColor(outgoing ? Color.DARK_GRAY : Color.LIGHT_GRAY);
+        FontMetrics fm = g2.getFontMetrics();
+        int timeWidth = fm.stringWidth(time);
+        int x = getWidth() - timeWidth - 10;
+        int y = getHeight() - 8;
+        g2.drawString(time, x, y);
+
         g2.dispose();
         super.paintComponent(g);
     }
+
 
 }
 
