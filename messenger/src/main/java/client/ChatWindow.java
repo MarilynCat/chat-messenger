@@ -562,63 +562,54 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
     public ContactListRenderer() {
         setLayout(new BorderLayout(10, 0));
         setBackground(new Color(40, 40, 40));
-        setBorder(new EmptyBorder(5, 10, 5, 10));
+        setBorder(new EmptyBorder(5, 10, 0, 10)); // 👈 убираем нижний отступ (было: 5, 10, 5, 10)
 
         avatarLabel.setPreferredSize(new Dimension(36, 36));
-        avatarLabel.setMinimumSize(new Dimension(36, 36));
-        avatarLabel.setMaximumSize(new Dimension(36, 36));
-        avatarLabel.setOpaque(false);
-        avatarLabel.setBackground(new Color(100, 100, 100)); // цвет круга
-        avatarLabel.setBorder(null);
         avatarLabel.setHorizontalAlignment(SwingConstants.CENTER);
         avatarLabel.setVerticalAlignment(SwingConstants.CENTER);
+        avatarLabel.setOpaque(false);
         avatarLabel.setUI(new javax.swing.plaf.basic.BasicLabelUI() {
             @Override
             public void paint(Graphics g, JComponent c) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                // Определяем размеры компонента
-                int w = c.getWidth();
-                int h = c.getHeight();
-                // Берём минимальный размер, чтобы круг не становился эллипсом
-                int size = Math.min(w, h);
-
-                // Вычисляем координаты, чтобы круг был по центру
-                int x = (w - size) / 2;
-                int y = (h - size) / 2;
-
-                // Заливаем круг цветом фона
+                int w = c.getWidth(), h = c.getHeight();
+                int size = Math.min(w, h), x = (w - size) / 2, y = (h - size) / 2;
                 g2.setColor(avatarLabel.getBackground());
                 g2.fillOval(x, y, size, size);
-
-                // Отрисовываем текст (букву) поверх круга
                 super.paint(g, c);
-
                 g2.dispose();
             }
-
         });
 
-
-
-        JPanel textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setOpaque(false);
         nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        nameLabel.setForeground(Color.WHITE);
+        nameLabel.setForeground(new Color(0x25D366));
         previewLabel.setFont(new Font("Arial", Font.PLAIN, 12));
         previewLabel.setForeground(Color.LIGHT_GRAY);
+
+        JPanel textPanel = new JPanel(new GridLayout(2, 1));
+        textPanel.setOpaque(false);
         textPanel.add(nameLabel);
         textPanel.add(previewLabel);
 
-        add(avatarLabel, BorderLayout.WEST);
-        add(textPanel, BorderLayout.CENTER);
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        centerPanel.setOpaque(false);
+        centerPanel.add(textPanel);
 
-        // Настраиваем divider, но не скрываем/показываем
-        divider.setPreferredSize(new Dimension(1, 1));
-        divider.setBackground(new Color(60, 60, 60));
-        add(divider, BorderLayout.SOUTH);
+        divider.setForeground(new Color(60, 60, 60));
+        divider.setPreferredSize(new Dimension(Short.MAX_VALUE, 1));
+        divider.setOpaque(true);
+
+        JPanel dividerWrapper = new JPanel(new BorderLayout());
+        dividerWrapper.setOpaque(false);
+        dividerWrapper.setBorder(new EmptyBorder(0, 46, 0, 0)); // 46px — отступ слева под аватар
+        dividerWrapper.setPreferredSize(new Dimension(Short.MAX_VALUE, 1));
+        dividerWrapper.add(divider, BorderLayout.CENTER);
+
+        add(avatarLabel, BorderLayout.WEST);
+        add(centerPanel, BorderLayout.CENTER);
+        add(dividerWrapper, BorderLayout.SOUTH);
     }
 
 
@@ -654,16 +645,9 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
         }
         previewLabel.setText(preview != null ? preview : " ");
 
-        // Показываем разделитель, если элемент не последний
-        divider.setOrientation(SwingConstants.HORIZONTAL);
-        divider.setPreferredSize(new Dimension(1, 1));
-        divider.setBackground(new Color(60, 60, 60));
-        divider.setForeground(new Color(60, 60, 60));
-        divider.setVisible(true); // всегда виден
-        add(divider, BorderLayout.SOUTH);
-
 
         return this;
+
     }
 
 }
