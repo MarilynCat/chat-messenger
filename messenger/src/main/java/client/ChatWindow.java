@@ -161,7 +161,8 @@ public class ChatWindow extends JFrame {
         userList.setFocusable(false); // ⬅️ Отключаем фокусировку, чтобы не рисовался синий обвод
 
         JScrollPane userScrollPane = new JScrollPane(userList);
-        userScrollPane.setBorder(null); // ⬅️ Убираем бордер у скроллпейна
+        userScrollPane.setBorder(null);
+        userScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER); // 🔧 фиксируем
         contactsPanel.add(userScrollPane);
 
 
