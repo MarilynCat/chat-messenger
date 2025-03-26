@@ -14,7 +14,8 @@ public class MessagePacket extends Packet {
     public MessagePacket(int senderId, int correspondentId, String text) {
         this.senderId = senderId;
         this.correspondentId = correspondentId;
-        this.text = (text != null) ? text.trim() : ""; // ✅ Исправление: защита от null
+        this.text = (text != null) ? text : "";
+
     }
 
     // ✅ Конструктор по умолчанию для корректной десериализации
@@ -34,7 +35,7 @@ public class MessagePacket extends Packet {
 
         writer.println(senderId);
         writer.println(correspondentId);
-        writer.println(text.trim());
+        writer.println(text);
         writer.println();  // ✅ Добавлен перенос строки для корректной передачи
         System.out.println("✅ [MessagePacket] Пакет успешно записан: " + text);
     }
@@ -44,12 +45,17 @@ public class MessagePacket extends Packet {
         try {
             senderId = Integer.parseInt(reader.readLine());
             correspondentId = Integer.parseInt(reader.readLine());
-            text = reader.readLine();
-
-            if (text == null || text.trim().isEmpty()) {
-                System.out.println("❗️ [MessagePacket] Получено пустое сообщение.");
-                text = "";
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                sb.append(line).append("\n");
             }
+            text = sb.toString().trim();
+
+            if (text.isEmpty()) {
+                System.out.println("❗️ [MessagePacket] Получено пустое сообщение.");
+            }
+
 
             System.out.println("📩 [MessagePacket] Получено сообщение: " + text);
         } catch (NumberFormatException e) {

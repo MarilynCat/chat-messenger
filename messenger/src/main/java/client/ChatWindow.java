@@ -7,19 +7,16 @@ import server.packets.RequestUserListPacket;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.awt.geom.RoundRectangle2D;
 import java.util.HashMap;
 import java.util.Map;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import javax.swing.border.AbstractBorder;
 import java.net.URL;
 
 public class ChatWindow extends JFrame {
     private static ChatWindow instance;
-    private JTextField messageField;
+    private JTextArea messageField;
     private JList<String> userList;
     private DefaultListModel<String> userListModel = new DefaultListModel<>();
     private ClientConnection connection;
@@ -145,7 +142,7 @@ public class ChatWindow extends JFrame {
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.setOpaque(false); // прозрачный фон
         inputPanel.setBorder(new EmptyBorder(5, 8, 5, 8)); // чуть-чуть отступов по бокам
-        inputPanel.setPreferredSize(new Dimension(0, 45)); // высота всей нижней панели
+        // inputPanel.setPreferredSize(new Dimension(0, 45)); // высота всей нижней панели
 
 // 2) Иконка «прикрепить файл» слева
         URL attachIconUrl = getClass().getResource("/icons/attach_icon.png");
@@ -162,29 +159,69 @@ public class ChatWindow extends JFrame {
         sendButton.setContentAreaFilled(false);
         sendButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-// 4) Поле ввода (прозрачное, без фона и границ)
-        messageField = new JTextField("Сообщение");
-        messageField.setFont(new Font("Arial", Font.PLAIN, 14));
-        messageField.setForeground(new Color(255, 255, 255, 204));
-        messageField.setCaretColor(Color.WHITE);
-        messageField.setOpaque(false); // отключаем фон
-        messageField.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14)); // отступы
+/// 4) Поле ввода (многострочное, прозрачное, без фона и границ)
+        JTextArea messageFieldArea = new JTextArea("Сообщение", 1, 20);
+        messageFieldArea.setRows(1);
+        messageFieldArea.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120)); // ограничим максимум
+        this.messageField = messageFieldArea; // сохраняем в поле для обратной совместимости
+        messageFieldArea.setFont(new Font("Arial", Font.PLAIN, 14));
+        messageFieldArea.setForeground(new Color(255, 255, 255, 204));
+        messageFieldArea.setCaretColor(Color.WHITE);
+        messageFieldArea.setOpaque(false);
+        messageFieldArea.setLineWrap(true);
+        messageFieldArea.setWrapStyleWord(true);
+        // Автоматическая подстройка высоты text area
+        messageFieldArea.setRows(1);
+        messageFieldArea.setLineWrap(true);
+        messageFieldArea.setWrapStyleWord(true);
+
+        messageFieldArea.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void updateSize() {
+                int lineCount = messageFieldArea.getLineCount();
+                int lineHeight = messageFieldArea.getFontMetrics(messageFieldArea.getFont()).getHeight();
+                int newHeight = lineHeight * lineCount + 20; // с отступами
+
+                // Применяем высоту
+                messageFieldArea.setPreferredSize(new Dimension(messageFieldArea.getWidth(), newHeight));
+                messageFieldArea.revalidate();
+            }
+
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent e) { updateSize(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { updateSize(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { updateSize(); }
+        });
+
+        // Автоматическое изменение высоты поля ввода
+        messageFieldArea.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void updateSize() {
+                messageFieldArea.setRows(Math.min(6, messageFieldArea.getLineCount()));
+                messageFieldArea.revalidate();
+                messageFieldArea.repaint();
+            }
+
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent e) { updateSize(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { updateSize(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { updateSize(); }
+        });
+
+        messageFieldArea.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+
 
 // 5) Плейсхолдер
-        messageField.addFocusListener(new FocusAdapter() {
+        messageFieldArea.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                if (messageField.getText().equals("Сообщение")) {
-                    messageField.setText("");
-                    messageField.setForeground(Color.WHITE);
+                if (messageFieldArea.getText().equals("Сообщение")) {
+                    messageFieldArea.setText("");
+                    messageFieldArea.setForeground(Color.WHITE);
                 }
             }
 
             @Override
             public void focusLost(FocusEvent e) {
-                if (messageField.getText().isEmpty()) {
-                    messageField.setText("Сообщение");
-                    messageField.setForeground(new Color(255, 255, 255, 204));
+                if (messageFieldArea.getText().trim().isEmpty()) {
+                    messageFieldArea.setText("Сообщение");
+                    messageFieldArea.setForeground(new Color(255, 255, 255, 204));
                 }
             }
         });
@@ -202,7 +239,7 @@ public class ChatWindow extends JFrame {
             }
         };
         roundedWrapper.setOpaque(false); // фон рисуем вручную
-        roundedWrapper.add(messageField, BorderLayout.CENTER);
+        roundedWrapper.add(messageFieldArea, BorderLayout.CENTER);
 
 
 // 7) Добавляем в нижнюю панель
@@ -216,7 +253,28 @@ public class ChatWindow extends JFrame {
         chatPanel.add(inputPanel, BorderLayout.SOUTH);
 
 // 8) Подключаем действия
-        messageField.addActionListener(e -> sendMessage());
+        InputMap inputMap = messageFieldArea.getInputMap(JComponent.WHEN_FOCUSED);
+        ActionMap actionMap = messageFieldArea.getActionMap();
+
+// Shift+Enter — вставка новой строки (дефолтное поведение, ничего не меняем)
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), "insert-break");
+        actionMap.put("insert-break", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                messageFieldArea.append("\n");
+            }
+        });
+
+// Enter без Shift — отправка
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "send-message");
+        actionMap.put("send-message", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                sendMessage();
+            }
+        });
+
+
         sendButton.addActionListener(e -> sendMessage());
 
         // Добавляем основные панели в окно
