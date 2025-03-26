@@ -96,6 +96,8 @@ public class ChatWindow extends JFrame {
         chatMessagesPanel = new JPanel();
         chatMessagesPanel.setLayout(new BoxLayout(chatMessagesPanel, BoxLayout.Y_AXIS));
         chatMessagesPanel.setBackground(new Color(25, 25, 25));
+        chatMessagesPanel.setBorder(new EmptyBorder(0, 0, 60, 0)); // отступ снизу, чтобы не заезжали под input
+
 
         JScrollPane chatScrollPane = new JScrollPane(chatMessagesPanel);
         chatScrollPane.setBorder(null);
@@ -335,10 +337,11 @@ class ChatBubbleArea extends JTextArea {
         int h = getHeight();
         int tailSize = 10;
 
+        // Исправлено: бабл расширен на 1px в сторону хвоста
         RoundRectangle2D.Float bubble = new RoundRectangle2D.Float(
-                outgoing ? 0 : tailSize,
+                outgoing ? 0 : tailSize - 1,
                 0,
-                w - tailSize,
+                w - tailSize + 1,
                 h,
                 arc, arc
         );
@@ -352,15 +355,17 @@ class ChatBubbleArea extends JTextArea {
             tail.addPoint(x, y + 5);
             tail.addPoint(x - tailSize, y + 10);
         } else {
-            tail.addPoint(0, 10);
-            tail.addPoint(tailSize, 5);
-            tail.addPoint(tailSize, 20);
+            int y = 10;
+            tail.addPoint(0, y);
+            tail.addPoint(tailSize, y - 5);
+            tail.addPoint(tailSize, y + 10);
         }
         g2.fillPolygon(tail);
 
         g2.dispose();
         super.paintComponent(g);
     }
+
 }
 
 class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
