@@ -152,9 +152,13 @@ public class ChatWindow extends JFrame {
         userList.setBackground(new Color(40, 40, 40));
         userList.setSelectionBackground(new Color(50, 200, 100));
         userList.setFixedCellHeight(60);
+        userList.setBorder(null); // ⬅️ Убираем бордер у JList
+        userList.setFocusable(false); // ⬅️ Отключаем фокусировку, чтобы не рисовался синий обвод
 
         JScrollPane userScrollPane = new JScrollPane(userList);
+        userScrollPane.setBorder(null); // ⬅️ Убираем бордер у скроллпейна
         contactsPanel.add(userScrollPane);
+
 
         JPanel chatPanel = new JPanel(new BorderLayout());
         chatPanel.setBackground(new Color(20, 20, 20));
