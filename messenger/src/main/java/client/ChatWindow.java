@@ -15,6 +15,7 @@ import java.util.Map;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import javax.swing.border.AbstractBorder;
+import java.net.URL;
 
 public class ChatWindow extends JFrame {
     private static ChatWindow instance;
@@ -105,76 +106,89 @@ public class ChatWindow extends JFrame {
         chatPanel.add(chatScrollPane, BorderLayout.CENTER);
 
 
-// 1) Создаём основную панель для ввода сообщений, задаём отступы:
+// 1) Нижняя панель с полностью прозрачным фоном и минимальными отступами
         JPanel inputPanel = new JPanel(new BorderLayout());
-        inputPanel.setBackground(new Color(30, 30, 30));
-// Отступы: сверху 0, слева 60, снизу 10, справа 60
-        inputPanel.setBorder(new EmptyBorder(0, 60, 10, 60));
+        inputPanel.setOpaque(false); // прозрачный фон
+        inputPanel.setBorder(new EmptyBorder(5, 8, 5, 8)); // чуть-чуть отступов по бокам
+        inputPanel.setPreferredSize(new Dimension(0, 45)); // высота всей нижней панели
 
-        JLabel attachLabel = new JLabel(new ImageIcon(getClass().getResource("/icons/attach_icon.png")));
+// 2) Иконка «прикрепить файл» слева
+        URL attachIconUrl = getClass().getResource("/icons/attach_icon.png");
+        Icon attachIcon = attachIconUrl != null ? new ImageIcon(attachIconUrl) : null;
+        JLabel attachLabel = new JLabel(attachIcon != null ? attachIcon : new ImageIcon()); // или можно new JLabel("+")
         attachLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        JButton sendButton = new JButton(new ImageIcon(getClass().getResource("/icons/send_icon.png")));
+
+// 3) Иконка «отправить» справа
+        URL sendIconUrl = getClass().getResource("/icons/send_icon.png");
+        Icon sendIcon = sendIconUrl != null ? new ImageIcon(sendIconUrl) : null;
+        JButton sendButton = new JButton(sendIcon != null ? sendIcon : new ImageIcon()); // или new JButton("→")
         sendButton.setBorder(null);
         sendButton.setContentAreaFilled(false);
         sendButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-
-// 3) Создаём поле ввода с плейсхолдером «Сообщение» и скруглённой границей
+// 4) Поле ввода (прозрачное, без фона и границ)
         messageField = new JTextField("Сообщение");
-// Цвет текста плейсхолдера (80% прозрачность белого)
+        messageField.setFont(new Font("Arial", Font.PLAIN, 14));
         messageField.setForeground(new Color(255, 255, 255, 204));
-// Фон поля (40% прозрачность белого)
-        messageField.setBackground(new Color(255, 255, 255, 102));
-        messageField.setOpaque(true);
-// Скруглённая граница (радиус 20px)
-        messageField.setBorder(new RoundedBorder(20));
+        messageField.setCaretColor(Color.WHITE);
+        messageField.setOpaque(false); // отключаем фон
+        messageField.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14)); // отступы
 
-// Подключаем FocusListener, чтобы плейсхолдер исчезал при вводе и появлялся при очистке
-        messageField.addFocusListener(new java.awt.event.FocusAdapter() {
+// 5) Плейсхолдер
+        messageField.addFocusListener(new FocusAdapter() {
             @Override
-            public void focusGained(java.awt.event.FocusEvent e) {
+            public void focusGained(FocusEvent e) {
                 if (messageField.getText().equals("Сообщение")) {
                     messageField.setText("");
-                    messageField.setForeground(new Color(255, 255, 255, 255)); // полностью белый при вводе
+                    messageField.setForeground(Color.WHITE);
                 }
             }
+
             @Override
-            public void focusLost(java.awt.event.FocusEvent e) {
+            public void focusLost(FocusEvent e) {
                 if (messageField.getText().isEmpty()) {
                     messageField.setText("Сообщение");
-                    messageField.setForeground(new Color(255, 255, 255, 204)); // 80% прозрачность
+                    messageField.setForeground(new Color(255, 255, 255, 204));
                 }
             }
         });
 
+// 6) Скруглённая обёртка
+        JPanel roundedWrapper = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(60, 60, 60)); // фон
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20); // скруглённый прямоугольник
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        roundedWrapper.setOpaque(false); // фон рисуем вручную
+        roundedWrapper.add(messageField, BorderLayout.CENTER);
 
-// 5) Собираем иконку слева, поле и иконку справа в отдельную панель
-        JPanel fieldPanel = new JPanel(new BorderLayout());
+
+// 7) Добавляем в нижнюю панель
+        // Создаём fieldPanel и добавляем в него иконки и обёртку с messageField
+        JPanel fieldPanel = new JPanel(new BorderLayout(10, 0));
         fieldPanel.setOpaque(false);
         fieldPanel.add(attachLabel, BorderLayout.WEST);
-        fieldPanel.add(messageField, BorderLayout.CENTER);
+        fieldPanel.add(roundedWrapper, BorderLayout.CENTER); // <-- тут именно roundedWrapper
         fieldPanel.add(sendButton, BorderLayout.EAST);
-// принудительно задаём высоту поля
-        fieldPanel.setPreferredSize(new Dimension(0, 40));
-
-// добавляем fieldPanel внутрь inputPanel
         inputPanel.add(fieldPanel, BorderLayout.CENTER);
-// задаём высоту всей нижней панели
-        inputPanel.setPreferredSize(new Dimension(0, 60));
-
         chatPanel.add(inputPanel, BorderLayout.SOUTH);
 
-// Логика отправки сообщений по нажатию Enter и кнопке «отправить»
+// 8) Подключаем действия
         messageField.addActionListener(e -> sendMessage());
         sendButton.addActionListener(e -> sendMessage());
 
+        // Добавляем основные панели в окно
         add(contactsPanel, BorderLayout.WEST);
         add(chatPanel, BorderLayout.CENTER);
-
-
-
     }
+
 
     private void sendMessage() {
         String text = messageField.getText().trim();
