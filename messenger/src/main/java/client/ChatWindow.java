@@ -76,15 +76,63 @@ public class ChatWindow extends JFrame {
 
 // ➕ Добавляем поле поиска
         JTextField searchField = new JTextField();
-        searchField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        searchField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        searchField.setMinimumSize(new Dimension(0, 35));
+        searchField.setPreferredSize(new Dimension(0, 35));
         searchField.setFont(new Font("Arial", Font.PLAIN, 13));
         searchField.setMargin(new Insets(5, 10, 5, 10));
         searchField.setBackground(new Color(50, 50, 50));
-        searchField.setForeground(Color.WHITE);
+        searchField.setForeground(new Color(255, 255, 255, 204));
         searchField.setCaretColor(Color.WHITE);
-        searchField.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        searchField.setOpaque(true);
-        contactsPanel.add(searchField);
+        searchField.setOpaque(false);
+        searchField.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+        searchField.setText("Поиск");
+
+
+        searchField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (searchField.getText().equals("Поиск")) {
+                    searchField.setText("");
+                    searchField.setForeground(Color.WHITE);
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (searchField.getText().trim().isEmpty()) {
+                    searchField.setText("Поиск");
+                    searchField.setForeground(new Color(255, 255, 255, 204));
+                    filterUserList(""); // 🛠 вручную сбрасываем фильтр
+                }
+
+            }
+        });
+
+
+
+        // Обёртка с фоном и скруглением
+        JPanel searchWrapper = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(60, 60, 60)); // тёмно-серый фон
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        searchWrapper.setOpaque(false);
+        searchWrapper.setBorder(new EmptyBorder(5, 10, 5, 10));
+        searchWrapper.add(searchField, BorderLayout.CENTER);
+        JPanel searchWrapperContainer = new JPanel(new BorderLayout());
+        searchWrapperContainer.setOpaque(false);
+        searchWrapperContainer.setBorder(new EmptyBorder(10, 10, 10, 10));
+        searchWrapperContainer.add(searchWrapper, BorderLayout.CENTER);
+        contactsPanel.add(searchWrapperContainer);
+
+
 
         searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             private void update() {
