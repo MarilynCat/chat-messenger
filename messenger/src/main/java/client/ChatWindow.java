@@ -23,6 +23,7 @@ public class ChatWindow extends JFrame {
     private String username;
     private String selectedUser;
     private final Map<String, Integer> userIdMap = new HashMap<>();
+    private final java.util.List<String> allUsers = new java.util.ArrayList<>();
     private final Map<String, String> lastMessages = new HashMap<>();
     private JPanel chatMessagesPanel;
     private JLabel chatTitle;
@@ -72,6 +73,31 @@ public class ChatWindow extends JFrame {
         profileLabel.setForeground(Color.WHITE);
         profileLabel.setBorder(new EmptyBorder(10, 10, 10, 10));
         contactsPanel.add(profileLabel);
+
+// ➕ Добавляем поле поиска
+        JTextField searchField = new JTextField();
+        searchField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        searchField.setFont(new Font("Arial", Font.PLAIN, 13));
+        searchField.setMargin(new Insets(5, 10, 5, 10));
+        searchField.setBackground(new Color(50, 50, 50));
+        searchField.setForeground(Color.WHITE);
+        searchField.setCaretColor(Color.WHITE);
+        searchField.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        searchField.setOpaque(true);
+        contactsPanel.add(searchField);
+
+        searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void update() {
+                String text = searchField.getText().trim();
+                filterUserList(text);
+            }
+
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { update(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { update(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { update(); }
+        });
+
+
 
         userList = new JList<>(userListModel);
         userList.setCellRenderer(new ContactListRenderer());
@@ -326,15 +352,28 @@ public class ChatWindow extends JFrame {
                 return;
             }
 
+            allUsers.clear();
             for (ListPacket.CorrespondentItem item : listPacket.items) {
                 if (!item.login.equals(username)) {
-                    userListModel.addElement(item.login);
+                    allUsers.add(item.login);
                     userIdMap.put(item.login, item.id);
                 }
             }
+            filterUserList(""); // покажем всех по умолчанию
+
 
             addMessageBubble("✅ Список пользователей обновлён.", false);
         });
+    }
+
+    private void filterUserList(String query) {
+        userListModel.clear();
+        userListModel.addElement("Вы: " + username);
+        for (String user : allUsers) {
+            if (user.toLowerCase().contains(query.toLowerCase())) {
+                userListModel.addElement(user);
+            }
+        }
     }
 
     public void displayIncomingMessage(String message) {
