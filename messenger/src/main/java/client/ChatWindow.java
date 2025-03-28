@@ -182,7 +182,12 @@ public class ChatWindow extends JFrame {
 
 
         // Загружаем фон
-        Image bgImage = new ImageIcon(getClass().getResource("/icons/chat_background.png")).getImage();
+        URL bgImageUrl = ChatWindow.class.getClassLoader().getResource("icons/chat_background.png");
+        if (bgImageUrl == null) {
+            System.err.println("❌ Не найден фон: icons/chat_background.png");
+        }
+        Image bgImage = bgImageUrl != null ? new ImageIcon(bgImageUrl).getImage() : null;
+
 
 // Создаём кастомный viewport
         JViewport customViewport = new JViewport() {
@@ -225,20 +230,30 @@ public class ChatWindow extends JFrame {
         inputPanel.setBorder(new EmptyBorder(5, 8, 5, 8)); // чуть-чуть отступов по бокам
         // inputPanel.setPreferredSize(new Dimension(0, 45)); // высота всей нижней панели
 
-// 2) Иконка «прикрепить файл» слева
+/// 2) Иконка «прикрепить файл» слева
+        Icon attachIcon;
         URL attachIconUrl = getClass().getResource("/icons/attach_icon.png");
-        Icon attachIcon = attachIconUrl != null ? new ImageIcon(attachIconUrl) : null;
-        JLabel attachLabel = new JLabel(attachIcon != null ? attachIcon : new ImageIcon()); // или можно new JLabel("+")
+        if (attachIconUrl != null) {
+            attachIcon = new ImageIcon(attachIconUrl);
+        } else {
+            attachIcon = new ImageIcon(); // или new JLabel("+") — как заглушка
+        }
+        JLabel attachLabel = new JLabel(attachIcon);
         attachLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
 
+
 // 3) Иконка «отправить» справа
+        Icon sendIcon;
         URL sendIconUrl = getClass().getResource("/icons/send_icon.png");
-        Icon sendIcon = sendIconUrl != null ? new ImageIcon(sendIconUrl) : null;
-        JButton sendButton = new JButton(sendIcon != null ? sendIcon : new ImageIcon()); // или new JButton("→")
-        sendButton.setBorder(null);
-        sendButton.setContentAreaFilled(false);
+        if (sendIconUrl != null) {
+            sendIcon = new ImageIcon(sendIconUrl);
+        } else {
+            sendIcon = new ImageIcon(); // или new JButton("→")
+        }
+        JButton sendButton = new JButton(sendIcon);
         sendButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
 
 /// 4) Поле ввода (многострочное, прозрачное, без фона и границ)
         JTextArea messageFieldArea = new JTextArea("Сообщение", 1, 20);
@@ -466,9 +481,16 @@ public class ChatWindow extends JFrame {
         chatMessagesPanel.revalidate();
         chatMessagesPanel.repaint();
 
-        JScrollBar vertical = ((JScrollPane) chatMessagesPanel.getParent().getParent()).getVerticalScrollBar();
-        vertical.setValue(vertical.getMaximum());
+        SwingUtilities.invokeLater(() -> {
+            Container parent = chatMessagesPanel.getParent();
+            if (parent != null && parent.getParent() instanceof JScrollPane scrollPane) {
+                JScrollBar vertical = scrollPane.getVerticalScrollBar();
+                vertical.setValue(vertical.getMaximum());
+            }
+        });
+
     }
+
 
     public void updateLastMessagePreview(String user, String message) {
         lastMessages.put(user, message);
@@ -515,7 +537,16 @@ class ChatBubbleArea extends JTextArea {
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(getBackground());
+        if (outgoing) {
+            GradientPaint gradient = new GradientPaint(
+                    0, 0, new Color(0x24, 0xD3, 0x66),
+                    0, getHeight(), new Color(0xAA, 0xE0, 0x2C)
+            );
+            g2.setPaint(gradient);
+        } else {
+            g2.setColor(getBackground());
+        }
+
 
         int arc = 20;
         int w = getWidth();
@@ -532,20 +563,35 @@ class ChatBubbleArea extends JTextArea {
         );
         g2.fill(bubble);
 
-        Polygon tail = new Polygon();
         if (outgoing) {
             int x = w - 1;
             int y = h - 15;
+
+            Polygon tail = new Polygon();
             tail.addPoint(x - tailSize, y);
             tail.addPoint(x, y + 5);
             tail.addPoint(x - tailSize, y + 10);
+
+            GradientPaint tailGradient = new GradientPaint(
+                    0, y,
+                    new Color(0x24, 0xD3, 0x66),
+                    0, y + 10,
+                    new Color(0xAA, 0xE0, 0x2C)
+            );
+            g2.setPaint(tailGradient);
+            g2.fillPolygon(tail);
         } else {
             int y = 10;
+
+            Polygon tail = new Polygon();
             tail.addPoint(0, y);
             tail.addPoint(tailSize, y - 5);
             tail.addPoint(tailSize, y + 10);
+
+            g2.setColor(getBackground());
+            g2.fillPolygon(tail);
         }
-        g2.fillPolygon(tail);
+
 
         g2.dispose();
         super.paintComponent(g);

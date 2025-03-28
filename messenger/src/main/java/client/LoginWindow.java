@@ -62,17 +62,23 @@ public class LoginWindow extends JFrame {
         }
 
         try {
-            ClientConnection connection = new ClientConnection("localhost", 20000, username, password, packet -> {
-                if (ChatWindow.getInstance() != null) {
-                    ChatWindow.getInstance().displayIncomingPacket(packet);
-                }
+            ClientConnection[] connectionHolder = new ClientConnection[1]; // обёртка-массив
+
+            connectionHolder[0] = new ClientConnection("localhost", 20000, username, password, packet -> {
+                SwingUtilities.invokeLater(() -> {
+                    ChatWindow chat = ChatWindow.getInstance();
+                    if (chat != null) {
+                        chat.displayIncomingPacket(packet);
+                    }
+                });
             });
 
-            connection.start();
+            connectionHolder[0].start();
 
-            ChatWindow chatWindow = new ChatWindow(connection, username);
+            ChatWindow chatWindow = new ChatWindow(connectionHolder[0], username);
             chatWindow.setVisible(true);
             this.dispose();
+
         } catch (Exception ex) {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Ошибка подключения: " + ex.getMessage());
