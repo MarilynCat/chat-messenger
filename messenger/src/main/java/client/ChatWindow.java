@@ -553,18 +553,6 @@ class ChatBubbleArea extends JComponent {
         int h = getHeight();
         int tailSize = 10;
 
-        if (outgoing) {
-            GradientPaint gradient = new GradientPaint(
-                    0, 0,
-                    new Color(0x24, 0xD3, 0x66),
-                    0, h,
-                    new Color(0xAA, 0xE0, 0x2C)
-            );
-            g2.setPaint(gradient);
-        } else {
-            g2.setColor(new Color(0x2A2A2A));
-        }
-
         RoundRectangle2D.Float bubble = new RoundRectangle2D.Float(
                 outgoing ? 0 : tailSize - 1,
                 0,
@@ -572,9 +560,8 @@ class ChatBubbleArea extends JComponent {
                 h,
                 arc, arc
         );
-        g2.fill(bubble);
 
-        // Хвостики
+        // Сначала рисуем хвостик
         if (outgoing) {
             int x = w - 1;
             int y = h - 15;
@@ -603,6 +590,21 @@ class ChatBubbleArea extends JComponent {
             g2.fillPolygon(tail);
         }
 
+        // Потом — бабл поверх
+        if (outgoing) {
+            GradientPaint gradient = new GradientPaint(
+                    0, 0,
+                    new Color(0x24, 0xD3, 0x66),
+                    0, h,
+                    new Color(0xAA, 0xE0, 0x2C)
+            );
+            g2.setPaint(gradient);
+        } else {
+            g2.setColor(new Color(0x2A2A2A));
+        }
+
+        g2.fill(bubble);
+
         // Текст
         g2.setFont(font);
         g2.setColor(outgoing ? Color.BLACK : Color.WHITE);
@@ -618,8 +620,8 @@ class ChatBubbleArea extends JComponent {
 
         g2.dispose();
     }
-
 }
+
 
 
 
