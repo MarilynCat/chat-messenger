@@ -26,6 +26,11 @@ public class ChatWindow extends JFrame {
     private final java.util.List<String> allUsers = new java.util.ArrayList<>();
     private final Map<String, String> lastMessages = new HashMap<>();
     private JPanel chatMessagesPanel;
+
+    public JPanel getChatMessagesPanel() {
+        return chatMessagesPanel;
+    }
+
     private JLabel chatTitle;
 
     public ChatWindow(ClientConnection connection, String username) {
@@ -253,6 +258,11 @@ public class ChatWindow extends JFrame {
         }
         JButton sendButton = new JButton(sendIcon);
         sendButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        sendButton.setContentAreaFilled(false);
+        sendButton.setBorderPainted(false);
+        sendButton.setFocusPainted(false);
+        sendButton.setBorder(null); // на всякий случай
+
 
 
 /// 4) Поле ввода (многострочное, прозрачное, без фона и границ)
@@ -506,54 +516,69 @@ public class ChatWindow extends JFrame {
     }
 }
 
-class ChatBubbleArea extends JTextArea {
+class ChatBubbleArea extends JComponent {
+    private final String text;
     private final boolean outgoing;
+    private final Font font = new Font("Arial", Font.PLAIN, 14);
 
     public ChatBubbleArea(String text, boolean outgoing) {
-        super(text);
+        this.text = text;
         this.outgoing = outgoing;
-        setLineWrap(true);
-        setWrapStyleWord(true);
-        setEditable(false);
-        setFont(new Font("Arial", Font.PLAIN, 14));
-        setBackground(outgoing ? new Color(0x25D366) : new Color(0x2A2A2A));
-        setForeground(outgoing ? Color.BLACK : Color.WHITE);
-        if (outgoing) {
-            setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 20));
-        } else {
-            setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 15));
-        }
-        setOpaque(false);
+        setFont(font);
     }
 
     @Override
     public Dimension getPreferredSize() {
-        Dimension preferred = super.getPreferredSize();
-        preferred.width = Math.min(preferred.width, 400);
-        return preferred;
+        FontMetrics fm = getFontMetrics(font);
+        int maxWidth = 400;
+        int lineHeight = fm.getHeight();
+
+        String[] lines = text.split("\n");
+        int width = 0;
+        int height = 0;
+
+        for (String line : lines) {
+            int lineWidth = SwingUtilities.computeStringWidth(fm, line);
+            width = Math.max(width, Math.min(maxWidth, lineWidth));
+            height += lineHeight;
+        }
+
+        int horizontalPadding = outgoing ? 15 + 20 : 20 + 15;
+        int verticalPadding = 10 + 10;
+
+        return new Dimension(width + horizontalPadding, height + verticalPadding);
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        if (outgoing) {
-            GradientPaint gradient = new GradientPaint(
-                    0, 0, new Color(0x24, 0xD3, 0x66),
-                    0, getHeight(), new Color(0xAA, 0xE0, 0x2C)
-            );
-            g2.setPaint(gradient);
-        } else {
-            g2.setColor(getBackground());
-        }
-
 
         int arc = 20;
         int w = getWidth();
         int h = getHeight();
         int tailSize = 10;
 
-        // Исправлено: бабл расширен на 1px в сторону хвоста
+        Color fillColor = outgoing ? new Color(0x25D366) : new Color(0x2A2A2A);
+        if (outgoing) {
+            try {
+                Point bubbleLocation = SwingUtilities.convertPoint(this, new Point(0, 0), ChatWindow.getInstance().getChatMessagesPanel());
+                int y = bubbleLocation.y;
+
+                GradientPaint gradient = new GradientPaint(
+                        0, y,
+                        new Color(0x24, 0xD3, 0x66),
+                        0, y + h,
+                        new Color(0xAA, 0xE0, 0x2C)
+                );
+                g2.setPaint(gradient);
+            } catch (Exception e) {
+                g2.setColor(fillColor);
+            }
+        } else {
+            g2.setColor(fillColor);
+        }
+
         RoundRectangle2D.Float bubble = new RoundRectangle2D.Float(
                 outgoing ? 0 : tailSize - 1,
                 0,
@@ -566,7 +591,6 @@ class ChatBubbleArea extends JTextArea {
         if (outgoing) {
             int x = w - 1;
             int y = h - 15;
-
             Polygon tail = new Polygon();
             tail.addPoint(x - tailSize, y);
             tail.addPoint(x, y + 5);
@@ -582,22 +606,33 @@ class ChatBubbleArea extends JTextArea {
             g2.fillPolygon(tail);
         } else {
             int y = 10;
-
             Polygon tail = new Polygon();
             tail.addPoint(0, y);
-            tail.addPoint(tailSize, y - 5);
-            tail.addPoint(tailSize, y + 10);
+            tail.addPoint(10, y - 5);
+            tail.addPoint(10, y + 10);
 
-            g2.setColor(getBackground());
+            g2.setColor(fillColor);
             g2.fillPolygon(tail);
         }
 
+        // 🖋️ Теперь текст
+        g2.setFont(font);
+        g2.setColor(outgoing ? Color.BLACK : Color.WHITE);
+        FontMetrics fm = g2.getFontMetrics();
+
+        int x = outgoing ? 15 : 20;
+        int y = 10 + fm.getAscent();
+
+        for (String line : text.split("\n")) {
+            g2.drawString(line, x, y);
+            y += fm.getHeight();
+        }
 
         g2.dispose();
-        super.paintComponent(g);
     }
-
 }
+
+
 
 class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
     private final JLabel avatarLabel = new JLabel();
