@@ -72,22 +72,22 @@ public class ChatWindow extends JFrame {
 
         // Создаём панель, как для обычного контакта
         JPanel profilePanel = new JPanel(new BorderLayout(10, 0));
-        profilePanel.setBackground(new Color(40, 40, 40));
+        profilePanel.setBackground(new Color(30, 30, 30));
         profilePanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
 // Иконка PNG вместо текста-аватарки
         URL iconUrl = getClass().getResource("/icons/user_icon.png"); // путь к иконке
         ImageIcon icon = iconUrl != null ? new ImageIcon(iconUrl) : new ImageIcon();
-        Image scaled = icon.getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH);
+        Image scaled = icon.getImage().getScaledInstance(25, 25, Image.SCALE_SMOOTH);
         JLabel profileAvatar = new JLabel(new ImageIcon(scaled));
-        profileAvatar.setPreferredSize(new Dimension(18, 18));
+        profileAvatar.setPreferredSize(new Dimension(25, 25));
         profileAvatar.setOpaque(false); // иконка — без фона
 
 
 // Имя пользователя
         JLabel profileName = new JLabel(username);
         profileName.setFont(new Font("Arial", Font.BOLD, 14));
-        profileName.setForeground(new Color(0xAAE02C));
+        profileName.setForeground(new Color(255, 255, 255));
 
         profilePanel.add(profileAvatar, BorderLayout.WEST);
         profilePanel.add(profileName, BorderLayout.CENTER);
@@ -99,7 +99,7 @@ public class ChatWindow extends JFrame {
         JTextField searchField = new JTextField();
         searchField.setFont(new Font("Arial", Font.PLAIN, 13));
         searchField.setMargin(new Insets(5, 10, 5, 10));
-        searchField.setBackground(new Color(50, 50, 50));
+        searchField.setBackground(new Color(60, 60, 60));
         searchField.setForeground(new Color(255, 255, 255, 204));
         searchField.setCaretColor(Color.WHITE);
         searchField.setOpaque(false);
@@ -135,7 +135,7 @@ public class ChatWindow extends JFrame {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(40, 40, 40)); // фон как у всей панели
+                g2.setColor(new Color(60, 60, 60));
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
                 g2.dispose();
             }
@@ -189,7 +189,7 @@ public class ChatWindow extends JFrame {
 
         chatTitle = new JLabel("Выберите собеседника", JLabel.CENTER);
         chatTitle.setFont(new Font("Arial", Font.BOLD, 14)); // как в nameLabel
-        chatTitle.setForeground(new Color(0x25D366));        // тот же зелёный
+        chatTitle.setForeground(new Color(255, 255, 255));
         chatTitle.setBackground(new Color(30, 30, 30));
         chatTitle.setOpaque(true);
         chatTitle.setBorder(new EmptyBorder(10, 0, 10, 0));
@@ -489,7 +489,8 @@ public class ChatWindow extends JFrame {
         bubbleWrapper.setOpaque(false);
         bubbleWrapper.setBorder(new EmptyBorder(5, 10, 5, 10));
 
-        ChatBubbleArea bubble = new ChatBubbleArea(text, outgoing);
+        String time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+        ChatBubbleArea bubble = new ChatBubbleArea(text, outgoing, time);
         Dimension preferred = bubble.getPreferredSize();
         bubble.setMaximumSize(new Dimension(preferred.width, preferred.height));
         bubble.setMinimumSize(preferred);
@@ -537,10 +538,12 @@ class ChatBubbleArea extends JComponent {
     private final String text;
     private final boolean outgoing;
     private final Font font = new Font("Arial", Font.PLAIN, 14);
+    private final String time;
 
-    public ChatBubbleArea(String text, boolean outgoing) {
+    public ChatBubbleArea(String text, boolean outgoing, String time) {
         this.text = text;
         this.outgoing = outgoing;
+        this.time = time;
         setFont(font);
     }
 
@@ -560,10 +563,27 @@ class ChatBubbleArea extends JComponent {
             height += lineHeight;
         }
 
+        // Учитываем размер времени
+        Font smallFont = font.deriveFont(Font.PLAIN, 11f);
+        FontMetrics timeFM = getFontMetrics(smallFont);
+        int timeWidth = timeFM.stringWidth(time);
+        int timeHeight = timeFM.getHeight();
+
+        boolean isShort = lines.length == 1 && (width + timeWidth + 30 < maxWidth);
+
         int horizontalPadding = outgoing ? 15 + 20 : 20 + 15;
         int verticalPadding = 10 + 10;
 
-        return new Dimension(width + horizontalPadding, height + verticalPadding);
+        int totalWidth = width + horizontalPadding;
+        int totalHeight = height + verticalPadding;
+
+        if (!isShort) {
+            totalHeight += timeHeight;
+        } else {
+            totalWidth += timeWidth + 10;
+        }
+
+        return new Dimension(totalWidth, totalHeight);
     }
 
     @Override
@@ -584,22 +604,17 @@ class ChatBubbleArea extends JComponent {
                 arc, arc
         );
 
-        // Сначала рисуем хвостик
+        // Хвостик
         if (outgoing) {
             int x = w - 1;
             int y = h - 15;
-
             Polygon tail = new Polygon();
             tail.addPoint(x - tailSize, y);
             tail.addPoint(x, y + 5);
             tail.addPoint(x - tailSize, y + 10);
-
-            GradientPaint tailGradient = new GradientPaint(
-                    0, y,
-                    new Color(0x24, 0xD3, 0x66),
-                    0, y + 10,
-                    new Color(0xAA, 0xE0, 0x2C)
-            );
+            GradientPaint tailGradient = new GradientPaint(0, y,
+                    new Color(0x24, 0xD3, 0x66), 0, y + 10,
+                    new Color(0xAA, 0xE0, 0x2C));
             g2.setPaint(tailGradient);
             g2.fillPolygon(tail);
         } else {
@@ -608,24 +623,19 @@ class ChatBubbleArea extends JComponent {
             tail.addPoint(0, y);
             tail.addPoint(10, y - 5);
             tail.addPoint(10, y + 10);
-
             g2.setColor(new Color(0x2A2A2A));
             g2.fillPolygon(tail);
         }
 
-        // Потом — бабл поверх
+        // Бабл
         if (outgoing) {
-            GradientPaint gradient = new GradientPaint(
-                    0, 0,
-                    new Color(0x24, 0xD3, 0x66),
-                    0, h,
-                    new Color(0xAA, 0xE0, 0x2C)
-            );
+            GradientPaint gradient = new GradientPaint(0, 0,
+                    new Color(0x24, 0xD3, 0x66), 0, h,
+                    new Color(0xAA, 0xE0, 0x2C));
             g2.setPaint(gradient);
         } else {
             g2.setColor(new Color(0x2A2A2A));
         }
-
         g2.fill(bubble);
 
         // Текст
@@ -636,14 +646,34 @@ class ChatBubbleArea extends JComponent {
         int x = outgoing ? 15 : 20;
         int y = 10 + fm.getAscent();
 
-        for (String line : text.split("\n")) {
+        String[] lines = text.split("\n");
+        for (String line : lines) {
             g2.drawString(line, x, y);
             y += fm.getHeight();
         }
 
+        // Время
+        Font smallFont = font.deriveFont(Font.PLAIN, 11f);
+        g2.setFont(smallFont);
+        FontMetrics tfm = g2.getFontMetrics();
+        int timeWidth = tfm.stringWidth(time);
+        int timeX = getWidth() - timeWidth - 12;
+        int textWidth = SwingUtilities.computeStringWidth(fm, text);
+        int timeY;
+
+        if (lines.length == 1 && textWidth + timeWidth + 30 < getWidth()) {
+            timeY = 10 + fm.getAscent();
+        } else {
+            timeY = getHeight() - 8;
+        }
+
+        g2.setColor(outgoing ? new Color(0, 0, 0, 160) : new Color(255, 255, 255, 160));
+        g2.drawString(time, timeX, timeY);
+
         g2.dispose();
     }
 }
+
 
 
 
@@ -702,7 +732,7 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
         JPanel textPanel = new JPanel(new GridLayout(2, 1));
         textPanel.setOpaque(false);
         nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        nameLabel.setForeground(new Color(0x25D366));
+        nameLabel.setForeground(Color.WHITE); // белый
         previewLabel.setFont(new Font("Arial", Font.PLAIN, 12));
         previewLabel.setForeground(Color.LIGHT_GRAY);
         textPanel.add(nameLabel);
