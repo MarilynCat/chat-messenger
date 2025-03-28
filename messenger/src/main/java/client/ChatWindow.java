@@ -69,10 +69,30 @@ public class ChatWindow extends JFrame {
         contactsPanel.setBackground(new Color(30, 30, 30));
         contactsPanel.setPreferredSize(new Dimension(250, 600));
 
-        JLabel profileLabel = new JLabel("Вы: " + username);
-        profileLabel.setForeground(Color.WHITE);
-        profileLabel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        contactsPanel.add(profileLabel);
+        // Создаём панель, как для обычного контакта
+        JPanel profilePanel = new JPanel(new BorderLayout(10, 0));
+        profilePanel.setBackground(new Color(40, 40, 40));
+        profilePanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+// Иконка PNG вместо текста-аватарки
+        URL iconUrl = getClass().getResource("/icons/user_icon.png"); // путь к иконке
+        ImageIcon icon = iconUrl != null ? new ImageIcon(iconUrl) : new ImageIcon();
+        Image scaled = icon.getImage().getScaledInstance(36, 36, Image.SCALE_SMOOTH);
+        JLabel profileAvatar = new JLabel(new ImageIcon(scaled));
+        profileAvatar.setPreferredSize(new Dimension(36, 36));
+        profileAvatar.setOpaque(false); // иконка — без фона
+
+
+// Имя пользователя
+        JLabel profileName = new JLabel(username);
+        profileName.setFont(new Font("Arial", Font.BOLD, 14));
+        profileName.setForeground(new Color(0xAAE02C));
+
+        profilePanel.add(profileAvatar, BorderLayout.WEST);
+        profilePanel.add(profileName, BorderLayout.CENTER);
+
+        contactsPanel.add(profilePanel);
+
 
 // ➕ Добавляем поле поиска
         JTextField searchField = new JTextField();
@@ -114,11 +134,11 @@ public class ChatWindow extends JFrame {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(60, 60, 60));
+                g2.setColor(new Color(40, 40, 40)); // фон как у всей панели
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
                 g2.dispose();
-                super.paintComponent(g);
             }
+
         };
         searchWrapper.setOpaque(false);
         searchWrapper.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
