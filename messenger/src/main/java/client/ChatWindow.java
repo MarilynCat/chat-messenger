@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.swing.border.AbstractBorder;
 import java.net.URL;
+import java.util.Random;
 
 public class ChatWindow extends JFrame {
     private static ChatWindow instance;
@@ -77,9 +78,9 @@ public class ChatWindow extends JFrame {
 // Иконка PNG вместо текста-аватарки
         URL iconUrl = getClass().getResource("/icons/user_icon.png"); // путь к иконке
         ImageIcon icon = iconUrl != null ? new ImageIcon(iconUrl) : new ImageIcon();
-        Image scaled = icon.getImage().getScaledInstance(30, 30, Image.SCALE_SMOOTH);
+        Image scaled = icon.getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH);
         JLabel profileAvatar = new JLabel(new ImageIcon(scaled));
-        profileAvatar.setPreferredSize(new Dimension(30, 30));
+        profileAvatar.setPreferredSize(new Dimension(18, 18));
         profileAvatar.setOpaque(false); // иконка — без фона
 
 
@@ -652,6 +653,8 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
     private final JLabel nameLabel = new JLabel();
     private final JLabel previewLabel = new JLabel();
     private final JSeparator divider = new JSeparator();
+    private final Map<String, Color> avatarColors = new HashMap<>();
+
 
     public ContactListRenderer() {
         setLayout(new BorderLayout(10, 0));
@@ -719,10 +722,18 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
         nameLabel.setText(login);
 
         // Настраиваем аватар: первая буква имени, фон и граница
+        // Генерируем или получаем цвет фона аватарки
+        Color avatarColor = avatarColors.computeIfAbsent(login, k -> {
+            Random rand = new Random(k.hashCode()); // одинаковый цвет для каждого логина при запуске
+            return new Color(100 + rand.nextInt(100), 100 + rand.nextInt(100), 100 + rand.nextInt(100));
+        });
+
+// Обновляем аватар: первая буква, фон, жирный и крупный шрифт
         avatarLabel.setText(login.substring(0, 1).toUpperCase());
-        avatarLabel.setBackground(new Color(100, 100, 100));
-// Убираем обводку, чтобы сохранить круглый вид:
+        avatarLabel.setBackground(avatarColor);
+        avatarLabel.setFont(new Font("Arial", Font.BOLD, 18));
         avatarLabel.setBorder(null);
+
 
 
         // Обновляем фон всего элемента в зависимости от выделения
