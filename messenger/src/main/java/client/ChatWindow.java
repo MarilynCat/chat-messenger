@@ -467,7 +467,11 @@ public class ChatWindow extends JFrame {
         bubbleWrapper.setBorder(new EmptyBorder(5, 10, 5, 10));
 
         ChatBubbleArea bubble = new ChatBubbleArea(text, outgoing);
-        bubble.setMaximumSize(new Dimension(400, Integer.MAX_VALUE));
+        Dimension preferred = bubble.getPreferredSize();
+        bubble.setMaximumSize(new Dimension(preferred.width, preferred.height));
+        bubble.setMinimumSize(preferred);
+        bubble.setPreferredSize(preferred);
+
 
         if (outgoing) {
             bubbleWrapper.add(Box.createHorizontalGlue());
