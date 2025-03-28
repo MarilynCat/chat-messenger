@@ -77,9 +77,9 @@ public class ChatWindow extends JFrame {
 // Иконка PNG вместо текста-аватарки
         URL iconUrl = getClass().getResource("/icons/user_icon.png"); // путь к иконке
         ImageIcon icon = iconUrl != null ? new ImageIcon(iconUrl) : new ImageIcon();
-        Image scaled = icon.getImage().getScaledInstance(36, 36, Image.SCALE_SMOOTH);
+        Image scaled = icon.getImage().getScaledInstance(30, 30, Image.SCALE_SMOOTH);
         JLabel profileAvatar = new JLabel(new ImageIcon(scaled));
-        profileAvatar.setPreferredSize(new Dimension(36, 36));
+        profileAvatar.setPreferredSize(new Dimension(30, 30));
         profileAvatar.setOpaque(false); // иконка — без фона
 
 
@@ -187,10 +187,12 @@ public class ChatWindow extends JFrame {
         chatPanel.setBackground(new Color(20, 20, 20));
 
         chatTitle = new JLabel("Выберите собеседника", JLabel.CENTER);
-        chatTitle.setForeground(Color.WHITE);
+        chatTitle.setFont(new Font("Arial", Font.BOLD, 14)); // как в nameLabel
+        chatTitle.setForeground(new Color(0x25D366));        // тот же зелёный
         chatTitle.setBackground(new Color(30, 30, 30));
         chatTitle.setOpaque(true);
         chatTitle.setBorder(new EmptyBorder(10, 0, 10, 0));
+
 
         chatMessagesPanel = new JPanel();
         chatMessagesPanel.setOpaque(false); // важный момент!
@@ -706,10 +708,6 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
         add(avatarLabel, BorderLayout.WEST);
         add(textPanel, BorderLayout.CENTER);
 
-        // Настраиваем divider, но не скрываем/показываем
-        divider.setPreferredSize(new Dimension(1, 1));
-        divider.setBackground(new Color(60, 60, 60));
-        add(divider, BorderLayout.SOUTH);
     }
 
 
@@ -744,14 +742,6 @@ class ContactListRenderer extends JPanel implements ListCellRenderer<String> {
             preview = preview.substring(0, 40) + "...";
         }
         previewLabel.setText(preview != null ? preview : " ");
-
-        // Показываем разделитель, если элемент не последний
-        divider.setOrientation(SwingConstants.HORIZONTAL);
-        divider.setPreferredSize(new Dimension(1, 1));
-        divider.setBackground(new Color(60, 60, 60));
-        divider.setForeground(new Color(60, 60, 60));
-        divider.setVisible(true); // всегда виден
-        add(divider, BorderLayout.SOUTH);
 
 
         return this;
