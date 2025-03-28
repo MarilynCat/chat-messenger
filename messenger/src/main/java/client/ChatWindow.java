@@ -55,11 +55,6 @@ public class ChatWindow extends JFrame {
                 if (selected != null) {
                     selectedUser = selected.startsWith("Вы: ") ? selected.substring(4) : selected;
                     chatTitle.setText(selectedUser);
-                    addMessageBubble("💬 Начат диалог с " + selectedUser, false);
-
-                    if (!userIdMap.containsKey(selectedUser)) {
-                        addMessageBubble("❌ Ошибка: Собеседник не найден в системе.", false);
-                    }
                 }
             }
         });
@@ -394,15 +389,12 @@ public class ChatWindow extends JFrame {
         if (text.trim().isEmpty()) return;
 
         if (selectedUser == null || selectedUser.equals("Вы: " + username) || !userIdMap.containsKey(selectedUser)) {
-            addMessageBubble("⚠️ Пожалуйста, выберите корректного собеседника из списка.", false);
             return;
         }
 
+
         Integer correspondentId = userIdMap.get(selectedUser);
-        if (correspondentId == null || correspondentId == -1) {
-            addMessageBubble("❌ Ошибка: Собеседник не найден или оффлайн.", false);
-            return;
-        }
+
 
         MessagePacket msgPacket = new MessagePacket(connection.getCurrentUserId(), correspondentId, text);
         connection.sendPacket(msgPacket);
@@ -441,8 +433,6 @@ public class ChatWindow extends JFrame {
             }
             filterUserList(""); // покажем всех по умолчанию
 
-
-            addMessageBubble("✅ Список пользователей обновлён.", false);
         });
     }
 
@@ -559,24 +549,16 @@ class ChatBubbleArea extends JComponent {
         int h = getHeight();
         int tailSize = 10;
 
-        Color fillColor = outgoing ? new Color(0x25D366) : new Color(0x2A2A2A);
         if (outgoing) {
-            try {
-                Point bubbleLocation = SwingUtilities.convertPoint(this, new Point(0, 0), ChatWindow.getInstance().getChatMessagesPanel());
-                int y = bubbleLocation.y;
-
-                GradientPaint gradient = new GradientPaint(
-                        0, y,
-                        new Color(0x24, 0xD3, 0x66),
-                        0, y + h,
-                        new Color(0xAA, 0xE0, 0x2C)
-                );
-                g2.setPaint(gradient);
-            } catch (Exception e) {
-                g2.setColor(fillColor);
-            }
+            GradientPaint gradient = new GradientPaint(
+                    0, 0,
+                    new Color(0x24, 0xD3, 0x66),
+                    0, h,
+                    new Color(0xAA, 0xE0, 0x2C)
+            );
+            g2.setPaint(gradient);
         } else {
-            g2.setColor(fillColor);
+            g2.setColor(new Color(0x2A2A2A));
         }
 
         RoundRectangle2D.Float bubble = new RoundRectangle2D.Float(
@@ -588,9 +570,11 @@ class ChatBubbleArea extends JComponent {
         );
         g2.fill(bubble);
 
+        // Хвостики
         if (outgoing) {
             int x = w - 1;
             int y = h - 15;
+
             Polygon tail = new Polygon();
             tail.addPoint(x - tailSize, y);
             tail.addPoint(x, y + 5);
@@ -611,11 +595,11 @@ class ChatBubbleArea extends JComponent {
             tail.addPoint(10, y - 5);
             tail.addPoint(10, y + 10);
 
-            g2.setColor(fillColor);
+            g2.setColor(new Color(0x2A2A2A));
             g2.fillPolygon(tail);
         }
 
-        // 🖋️ Теперь текст
+        // Текст
         g2.setFont(font);
         g2.setColor(outgoing ? Color.BLACK : Color.WHITE);
         FontMetrics fm = g2.getFontMetrics();
@@ -630,6 +614,7 @@ class ChatBubbleArea extends JComponent {
 
         g2.dispose();
     }
+
 }
 
 
